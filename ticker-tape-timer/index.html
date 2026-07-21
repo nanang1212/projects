@@ -1,1 +1,280 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Simulasi Ticker Tape Timer (50 Hz)</title>
+    <style>
+        :root {
+            --primary: #2563eb;
+            --bg: #f8fafc;
+            --text: #0f172a;
+        }
 
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            padding: 20px;
+            margin: 0;
+        }
+
+        .container {
+            max-width: 850px;
+            margin: 0 auto;
+            background: #ffffff;
+            padding: 30px;
+            border-radius: 12px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 20px;
+            color: var(--primary);
+            text-decoration: none;
+            font-weight: 600;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 8px;
+        }
+
+        .description {
+            color: #64748b;
+            margin-bottom: 25px;
+        }
+
+        .controls {
+            background: #f1f5f9;
+            padding: 15px 20px;
+            border-radius: 8px;
+            margin-bottom: 25px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+
+        input[type="range"] {
+            cursor: pointer;
+        }
+
+        button {
+            padding: 10px 20px;
+            background-color: var(--primary);
+            color: white;
+            border: none;
+            border-radius: 6px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: background 0.2s;
+        }
+
+        button:hover {
+            background-color: #1d4ed8;
+        }
+
+        canvas {
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            background-color: #ffffff;
+            margin-top: 10px;
+            display: block;
+            width: 100%;
+        }
+
+        h3 {
+            margin-top: 25px;
+            font-size: 1.1rem;
+            color: #334155;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 15px;
+        }
+
+        th, td {
+            border: 1px solid #e2e8f0;
+            padding: 10px;
+            text-align: center;
+        }
+
+        th {
+            background-color: #f1f5f9;
+            color: #334155;
+            font-size: 0.9rem;
+        }
+
+        td {
+            font-size: 0.95rem;
+        }
+    </style>
+</head>
+<body>
+
+<div class="container">
+    <a href="../" class="back-link">&larr; Kembali ke Daftar Proyek</a>
+    
+    <h1>Simulasi Ticker Tape Timer (50 Hz)</h1>
+    <p class="description">Ekstraksi data kinematika dari jarak antar ketukan. Frekuensi timer = 50 Hz (&Delta;t = 0.02s per titik).</p>
+
+    <div class="controls">
+        <div>
+            <label for="accInput">Percepatan (a): <strong id="accValue">2.0</strong> m/s²</label><br>
+            <input type="range" id="accInput" min="0.5" max="5.0" step="0.5" value="2.0">
+        </div>
+        <button onclick="runSimulation()">Jalankan Simulasi</button>
+    </div>
+
+    <h3>Pita Kertas (Ticker Tape)</h3>
+    <canvas id="tapeCanvas" width="790" height="70"></canvas>
+
+    <h3>Grafik Kecepatan vs Waktu (v-t)</h3>
+    <canvas id="graphCanvas" width="790" height="240"></canvas>
+
+    <h3>Tabel Data Interval (5 Ketukan = 0.10s)</h3>
+    <table>
+        <thead>
+            <tr>
+                <th>Waktu Tengah / Mid-Time (s)</th>
+                <th>Jarak / &Delta;s (cm)</th>
+                <th>Kecepatan / v (cm/s)</th>
+            </tr>
+        </thead>
+        <tbody id="tableBody">
+            <tr><td colspan="3">Klik "Jalankan Simulasi" untuk menghasilkan data.</td></tr>
+        </tbody>
+    </table>
+</div>
+
+<script>
+    const accInput = document.getElementById('accInput');
+    const accValue = document.getElementById('accValue');
+
+    accInput.addEventListener('input', (e) => {
+        accValue.innerText = e.target.value;
+    });
+
+    function runSimulation() {
+        const a = parseFloat(accInput.value) * 100; // m/s^2 ke cm/s^2
+        const dt = 0.02; // 50 Hz
+        const totalDots = 30;
+        
+        let dots = [];
+        for (let i = 0; i < totalDots; i++) {
+            let t = i * dt;
+            let s = 0.5 * a * Math.pow(t, 2);
+            dots.push({ t: t, s: s });
+        }
+
+        drawTape(dots);
+        
+        let intervalData = [];
+        for (let i = 0; i < dots.length - 5; i += 5) {
+            let tStart = dots[i].t;
+            let tEnd = dots[i + 5].t;
+            let midTime = (tStart + tEnd) / 2;
+            let ds = dots[i + 5].s - dots[i].s;
+            let v = ds / 0.10;
+            
+            intervalData.push({ midTime, ds, v });
+        }
+
+        updateTable(intervalData);
+        drawGraph(intervalData);
+    }
+
+    function drawTape(dots) {
+        const canvas = document.getElementById('tapeCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        ctx.fillStyle = '#fffbeb';
+        ctx.strokeStyle = '#fde68a';
+        ctx.lineWidth = 2;
+        ctx.fillRect(10, 15, canvas.width - 20, 40);
+        ctx.strokeRect(10, 15, canvas.width - 20, 40);
+
+        ctx.fillStyle = '#1e293b';
+        dots.forEach(dot => {
+            let x = 20 + dot.s * 3.2;
+            if (x < canvas.width - 20) {
+                ctx.beginPath();
+                ctx.arc(x, 35, 3.5, 0, Math.PI * 2);
+                ctx.fill();
+            }
+        });
+    }
+
+    function drawGraph(data) {
+        const canvas = document.getElementById('graphCanvas');
+        const ctx = canvas.getContext('2d');
+        ctx.clearRect(0, 0, canvas.width, canvas.height);
+
+        const margin = 45;
+        const width = canvas.width - margin * 2;
+        const height = canvas.height - margin * 2;
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#94a3b8';
+        ctx.lineWidth = 1.5;
+        ctx.moveTo(margin, margin);
+        ctx.lineTo(margin, canvas.height - margin);
+        ctx.lineTo(canvas.width - margin, canvas.height - margin);
+        ctx.stroke();
+
+        if (data.length === 0) return;
+
+        let maxV = Math.max(...data.map(d => d.v)) * 1.25;
+        let maxT = 0.6;
+
+        ctx.beginPath();
+        ctx.strokeStyle = '#2563eb';
+        ctx.fillStyle = '#2563eb';
+        ctx.lineWidth = 2.5;
+
+        data.forEach((d, index) => {
+            let x = margin + (d.midTime / maxT) * width;
+            let y = (canvas.height - margin) - (d.v / maxV) * height;
+
+            ctx.beginPath();
+            ctx.arc(x, y, 4, 0, Math.PI * 2);
+            ctx.fill();
+
+            if (index === 0) {
+                ctx.beginPath();
+                ctx.moveTo(x, y);
+            } else {
+                ctx.lineTo(x, y);
+            }
+        });
+        ctx.stroke();
+    }
+
+    function updateTable(data) {
+        const tbody = document.getElementById('tableBody');
+        tbody.innerHTML = '';
+        data.forEach(row => {
+            let tr = `<tr>
+                <td>${row.midTime.toFixed(2)}</td>
+                <td>${row.ds.toFixed(2)}</td>
+                <td>${row.v.toFixed(2)}</td>
+            </tr>`;
+            tbody.innerHTML += tr;
+        });
+    }
+
+    // Jalankan simulasi otomatis saat halaman dimuat
+    runSimulation();
+</script>
+
+</body>
+</html>
