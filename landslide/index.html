@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GUI PCITRA - Segmentasi Citra Drone Chan-Vese</title>
+    <title>Landlide Identification-Segmentasi Citra Drone Chan-Vese</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #334155; }
@@ -13,7 +13,7 @@
         .btn { background-color: #2563eb; color: white; border: none; padding: 10px 16px; font-size: 0.95rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
         .btn:hover { background-color: #1d4ed8; }
         .btn:disabled { background-color: #94a3b8; cursor: not-allowed; }
-        .btn-warning { background-color: #f59e0b; }
+        .btn-warning { background-color: #f59e0b; color: white; }
         .btn-warning:hover { background-color: #d97706; }
         .btn-danger { background-color: #ef4444; }
         .btn-danger:hover { background-color: #dc2626; }
@@ -31,7 +31,7 @@
 <body>
 
 <div class="container">
-    <h1>GUI PCITRA - Active Contour (Chan-Vese)</h1>
+    <h1>Landlide Identification - Active Contour (Chan-Vese)</h1>
 
     <div class="control-panel">
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
@@ -39,7 +39,7 @@
 
         <div class="input-group">
             <label for="edit1"><strong>Iterasi:</strong></label>
-            <input type="number" id="edit1" value="500" min="1" max="50000">
+            <input type="number" id="edit1" value="500" min="1" max="10000">
         </div>
 
         <button class="btn" id="btnProcess" onclick="startSegmentation()">2. Segmentasi</button>
@@ -54,11 +54,11 @@
 
     <div class="canvas-grid">
         <div class="canvas-card">
-            <h3>Citra Asli</h3>
+            <h3>Citra Asli (Initial Contour)</h3>
             <canvas id="canvasInput"></canvas>
         </div>
         <div class="canvas-card">
-            <h3>Hasil Segmentasi (Kontur Merah)</h3>
+            <h3>Hasil Segmentasi (MATLAB Style)</h3>
             <canvas id="canvasOutput"></canvas>
         </div>
     </div>
@@ -68,7 +68,7 @@
     let originalImageData = null;
     let imgWidth = 0;
     let imgHeight = 0;
-    let activeWorker = null; // Variabel global penampung Web Worker
+    let activeWorker = null;
 
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -91,10 +91,19 @@
 
                 const ctxIn = canvasIn.getContext('2d');
                 ctxIn.drawImage(img, 0, 0);
+                
+                // Simpan data piksel murni tanpa corak garis
                 originalImageData = ctxIn.getImageData(0, 0, imgWidth, imgHeight);
 
+                // Gambar kotak inisialisasi awal (Initial Contour) di canvas kiri
+                const marginY = Math.round(imgHeight * 0.25);
+                const marginX = Math.round(imgWidth * 0.25);
+                ctxIn.strokeStyle = '#ef4444';
+                ctxIn.lineWidth = Math.max(3, Math.round(imgWidth / 300));
+                ctxIn.strokeRect(marginX, marginY, imgWidth - 2 * marginX, imgHeight - 2 * marginY);
+
                 canvasOut.getContext('2d').clearRect(0, 0, imgWidth, imgHeight);
-                document.getElementById('statusText').innerText = `Citra drone dimuat: (${imgWidth} x ${imgHeight} px).`;
+                document.getElementById('statusText').innerText = `Citra dimuat (${imgWidth} x ${imgHeight} px). Kontur awal ditampilkan.`;
                 document.getElementById('progressContainer').style.display = 'none';
                 document.getElementById('progressBar').style.width = '0%';
             };
@@ -103,18 +112,19 @@
         reader.readAsDataURL(file);
     });
 
-    // Kode Worker Latar Belakang
+    // Worker dengan algoritma Chan-Vese yang distabilkan
     const workerScript = `
         self.onmessage = function(e) {
             const { srcData, width, height, numIter } = e.data;
 
-            // 1. Grayscale
+            // 1. Grayscale & Normalisasi Intensitas [0.0 - 1.0]
             const I = new Float32Array(width * height);
             for (let i = 0; i < width * height; i++) {
-                I[i] = 0.299 * srcData[i * 4] + 0.587 * srcData[i * 4 + 1] + 0.114 * srcData[i * 4 + 2];
+                const gray = 0.299 * srcData[i * 4] + 0.587 * srcData[i * 4 + 1] + 0.114 * srcData[i * 4 + 2];
+                I[i] = gray / 255.0; // PENTING: Mencegah NaN / Overflow
             }
 
-            // 2. Inisialisasi Mask
+            // 2. Inisialisasi Level Set Phi (Kotak Tengah)
             const phi = new Float32Array(width * height);
             const marginY = Math.round(height * 0.25);
             const marginX = Math.round(width * 0.25);
@@ -123,23 +133,24 @@
                 for (let x = 0; x < width; x++) {
                     const idx = y * width + x;
                     if (y >= marginY && y <= height - marginY && x >= marginX && x <= width - marginX) {
-                        phi[idx] = 2.0;
+                        phi[idx] = -2.0; // Dalam kontur
                     } else {
-                        phi[idx] = -2.0;
+                        phi[idx] = 2.0;  // Luar kontur
                     }
                 }
             }
 
             const dt = 0.5;
-            const lambda1 = 1.0, lambda2 = 1.0, mu = 0.1 * 255 * 255;
+            const mu = 0.2;
+            const eps = 1.0;
 
-            // 3. Loop Iterasi
+            // 3. Iterasi Pembaruan Kontur Chan-Vese
             for (let iter = 1; iter <= numIter; iter++) {
                 let sumIn = 0, countIn = 0;
                 let sumOut = 0, countOut = 0;
 
                 for (let i = 0; i < width * height; i++) {
-                    if (phi[i] > 0) {
+                    if (phi[i] <= 0) {
                         sumIn += I[i];
                         countIn++;
                     } else {
@@ -148,25 +159,33 @@
                     }
                 }
 
-                const c1 = countIn > 0 ? sumIn / countIn : 0;
-                const c2 = countOut > 0 ? sumOut / countOut : 0;
+                const c1 = countIn > 0 ? sumIn / countIn : 0.5;
+                const c2 = countOut > 0 ? sumOut / countOut : 0.5;
 
                 for (let y = 1; y < height - 1; y++) {
                     for (let x = 1; x < width - 1; x++) {
                         const idx = y * width + x;
                         const val = I[idx];
+                        const p = phi[idx];
 
-                        const phiX = (phi[idx + 1] - phi[idx - 1]) / 2;
-                        const phiY = (phi[idx + width] - phi[idx - width]) / 2;
-                        const phiXX = phi[idx + 1] + phi[idx - 1] - 2 * phi[idx];
-                        const phiYY = phi[idx + width] + phi[idx - width] - 2 * phi[idx];
-                        const phiXY = (phi[idx + width + 1] - phi[idx + width - 1] - phi[idx - width + 1] + phi[idx - width - 1]) / 4;
+                        // Persamaan Dirac Delta
+                        const dirac = eps / (Math.PI * (p * p + eps * eps));
 
-                        const gradSq = phiX * phiX + phiY * phiY + 1e-6;
-                        const kappa = (phiXX * phiY * phiY - 2 * phiX * phiY * phiXY + phiYY * phiX * phiX) / Math.pow(gradSq, 1.5);
+                        // Turunan Spasial untuk Kelengkapan (Curvature kappa)
+                        const phiX = (phi[idx + 1] - phi[idx - 1]) / 2.0;
+                        const phiY = (phi[idx + width] - phi[idx - width]) / 2.0;
 
-                        const force = -lambda1 * Math.pow(val - c1, 2) + lambda2 * Math.pow(val - c2, 2);
-                        phi[idx] += dt * (mu * kappa + force);
+                        const phiXX = phi[idx + 1] + phi[idx - 1] - 2.0 * p;
+                        const phiYY = phi[idx + width] + phi[idx - width] - 2.0 * p;
+                        const phiXY = (phi[idx + width + 1] - phi[idx + width - 1] - phi[idx - width + 1] + phi[idx - width - 1]) / 4.0;
+
+                        const gradSq = phiX * phiX + phiY * phiY + 1e-4;
+                        const kappa = (phiXX * phiY * phiY - 2.0 * phiX * phiY * phiXY + phiYY * phiX * phiX) / Math.pow(gradSq, 1.5);
+
+                        // Gaya Chan-Vese
+                        const force = - Math.pow(val - c1, 2) + Math.pow(val - c2, 2);
+
+                        phi[idx] += dt * dirac * (mu * kappa + force);
                     }
                 }
 
@@ -175,7 +194,7 @@
                 }
             }
 
-            // 4. Visualisasi Kontur
+            // 4. Render Visualisasi Sesuai MATLAB (Hijau Highlight + Kontur Merah)
             const outPixels = new Uint8ClampedArray(width * height * 4);
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
@@ -183,24 +202,27 @@
                     const pxIdx = idx * 4;
 
                     let isBoundary = false;
-                    if (phi[idx] > 0) {
-                        if ((x > 0 && phi[idx - 1] <= 0) || 
-                            (x < width - 1 && phi[idx + 1] <= 0) || 
-                            (y > 0 && phi[idx - width] <= 0) || 
-                            (y < height - 1 && phi[idx + width] <= 0)) {
+                    if (phi[idx] <= 0) {
+                        if ((x > 0 && phi[idx - 1] > 0) || 
+                            (x < width - 1 && phi[idx + 1] > 0) || 
+                            (y > 0 && phi[idx - width] > 0) || 
+                            (y < height - 1 && phi[idx + width] > 0)) {
                             isBoundary = true;
                         }
                     }
 
                     if (isBoundary) {
+                        // Garis Kontur Merah Menyala
                         outPixels[pxIdx] = 255;
                         outPixels[pxIdx + 1] = 0;
                         outPixels[pxIdx + 2] = 0;
-                    } else if (phi[idx] > 0) {
-                        outPixels[pxIdx] = Math.min(255, srcData[pxIdx] + 60);
-                        outPixels[pxIdx + 1] = Math.round(srcData[pxIdx + 1] * 0.7);
-                        outPixels[pxIdx + 2] = Math.round(srcData[pxIdx + 2] * 0.7);
+                    } else if (phi[idx] <= 0) {
+                        // Area Tersegmentasi: Hijau Menyala Transparan (Sesuai contoh MATLAB)
+                        outPixels[pxIdx] = Math.round(srcData[pxIdx] * 0.3);
+                        outPixels[pxIdx + 1] = Math.min(255, srcData[pxIdx + 1] + 130);
+                        outPixels[pxIdx + 2] = Math.round(srcData[pxIdx + 2] * 0.3);
                     } else {
+                        // Area Luar: Warna Citra Asli
                         outPixels[pxIdx] = srcData[pxIdx];
                         outPixels[pxIdx + 1] = srcData[pxIdx + 1];
                         outPixels[pxIdx + 2] = srcData[pxIdx + 2];
@@ -215,13 +237,12 @@
 
     function startSegmentation() {
         if (!originalImageData) {
-            alert("Silakan buka citra drone terlebih dahulu!");
+            alert("Silakan buka citra terlebih dahulu!");
             return;
         }
 
         const numIter = parseInt(document.getElementById('edit1').value) || 500;
-        
-        // Atur UI
+
         document.getElementById('btnProcess').disabled = true;
         document.getElementById('btnOpen').disabled = true;
         document.getElementById('btnStop').disabled = false;
@@ -229,10 +250,7 @@
         document.getElementById('progressBar').style.width = '0%';
         document.getElementById('statusText').innerText = `Memulai pemrosesan ${numIter} iterasi...`;
 
-        // Matikan worker lama jika ada
-        if (activeWorker) {
-            activeWorker.terminate();
-        }
+        if (activeWorker) activeWorker.terminate();
 
         const blob = new Blob([workerScript], { type: 'application/javascript' });
         activeWorker = new Worker(URL.createObjectURL(blob));
@@ -257,7 +275,7 @@
                 finalImgData.data.set(e.data.outPixels);
                 ctxOut.putImageData(finalImgData, 0, 0);
 
-                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur berhasil dibentuk.";
+                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur berhasil terbentuk.";
                 finishProcessingState();
             }
         };
@@ -269,17 +287,15 @@
         };
     }
 
-    // Fungsi Menghentikan Pemrosesan (Tombol STOP)
     function stopSegmentation() {
         if (activeWorker) {
             activeWorker.terminate();
             activeWorker = null;
-            document.getElementById('statusText').innerText = "Proses segmentasi dihentikan oleh pengguna.";
+            document.getElementById('statusText').innerText = "Proses segmentasi dihentikan.";
             finishProcessingState();
         }
     }
 
-    // Fungsi Reset Keseluruhan (Tombol RESET)
     function resetApp() {
         if (activeWorker) {
             activeWorker.terminate();
@@ -288,19 +304,18 @@
 
         originalImageData = null;
         document.getElementById('fileInput').value = '';
-        
+
         const canvasIn = document.getElementById('canvasInput');
         const canvasOut = document.getElementById('canvasOutput');
         canvasIn.getContext('2d').clearRect(0, 0, canvasIn.width, canvasIn.height);
         canvasOut.getContext('2d').clearRect(0, 0, canvasOut.width, canvasOut.height);
-        
+
         document.getElementById('statusText').innerText = "Aplikasi di-reset.";
         document.getElementById('progressContainer').style.display = 'none';
         document.getElementById('progressBar').style.width = '0%';
         finishProcessingState();
     }
 
-    // Helper mereset status tombol kembali aktif
     function finishProcessingState() {
         document.getElementById('btnProcess').disabled = false;
         document.getElementById('btnOpen').disabled = false;
