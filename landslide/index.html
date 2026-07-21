@@ -7,19 +7,21 @@
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #334155; }
-        .container { max-width: 1000px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .container { max-width: 1100px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         h1 { text-align: center; color: #0f172a; margin-bottom: 20px; font-size: 1.8rem; }
-        .control-panel { display: flex; flex-wrap: wrap; gap: 15px; align-items: center; justify-content: center; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
-        .btn { background-color: #2563eb; color: white; border: none; padding: 10px 18px; font-size: 0.95rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
+        .control-panel { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
+        .btn { background-color: #2563eb; color: white; border: none; padding: 10px 16px; font-size: 0.95rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
         .btn:hover { background-color: #1d4ed8; }
         .btn:disabled { background-color: #94a3b8; cursor: not-allowed; }
+        .btn-warning { background-color: #f59e0b; }
+        .btn-warning:hover { background-color: #d97706; }
         .btn-danger { background-color: #ef4444; }
         .btn-danger:hover { background-color: #dc2626; }
         .input-group { display: flex; align-items: center; gap: 8px; }
-        input[type="number"] { width: 80px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; text-align: center; }
+        input[type="number"] { width: 85px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; text-align: center; }
         .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 10px; display: none; }
         .progress-bar { width: 0%; height: 100%; background: #2563eb; transition: width 0.2s; }
-        .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 20px; margin-top: 15px; }
+        .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(400px, 1fr)); gap: 20px; margin-top: 15px; }
         .canvas-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
         .canvas-card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.1rem; color: #475569; }
         canvas { max-width: 100%; height: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #000; }
@@ -33,15 +35,16 @@
 
     <div class="control-panel">
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
-        <button class="btn" onclick="document.getElementById('fileInput').click()">1. Buka Citra Drone</button>
+        <button class="btn" id="btnOpen" onclick="document.getElementById('fileInput').click()">1. Buka Citra</button>
 
         <div class="input-group">
             <label for="edit1"><strong>Iterasi:</strong></label>
-            <input type="number" id="edit1" value="500" min="1" max="5000">
+            <input type="number" id="edit1" value="500" min="1" max="50000">
         </div>
 
-        <button class="btn" id="btnProcess" onclick="startSegmentation()">2. Segmentasi Full-Res</button>
-        <button class="btn btn-danger" onclick="resetApp()">3. Reset</button>
+        <button class="btn" id="btnProcess" onclick="startSegmentation()">2. Segmentasi</button>
+        <button class="btn btn-warning" id="btnStop" onclick="stopSegmentation()" disabled>3. Stop</button>
+        <button class="btn btn-danger" id="btnReset" onclick="resetApp()">4. Reset</button>
     </div>
 
     <div id="statusText">Pilih file citra drone untuk memulai...</div>
@@ -55,7 +58,7 @@
             <canvas id="canvasInput"></canvas>
         </div>
         <div class="canvas-card">
-            <h3>Hasil Segmentasi (Resolusi Asli)</h3>
+            <h3>Hasil Segmentasi (Kontur Merah)</h3>
             <canvas id="canvasOutput"></canvas>
         </div>
     </div>
@@ -65,6 +68,7 @@
     let originalImageData = null;
     let imgWidth = 0;
     let imgHeight = 0;
+    let activeWorker = null; // Variabel global penampung Web Worker
 
     document.getElementById('fileInput').addEventListener('change', function(e) {
         const file = e.target.files[0];
@@ -99,21 +103,26 @@
         reader.readAsDataURL(file);
     });
 
-    // Skrip Worker untuk memproses gambar besar tanpa membuat browser freezing
+    // Kode Worker Latar Belakang
     const workerScript = `
         self.onmessage = function(e) {
             const { srcData, width, height, numIter } = e.data;
 
+            // 1. Grayscale
             const I = new Float32Array(width * height);
             for (let i = 0; i < width * height; i++) {
                 I[i] = 0.299 * srcData[i * 4] + 0.587 * srcData[i * 4 + 1] + 0.114 * srcData[i * 4 + 2];
             }
 
+            // 2. Inisialisasi Mask
             const phi = new Float32Array(width * height);
+            const marginY = Math.round(height * 0.25);
+            const marginX = Math.round(width * 0.25);
+
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const idx = y * width + x;
-                    if (y >= 5 && y < height - 5 && x >= 15 && x < width - 15) {
+                    if (y >= marginY && y <= height - marginY && x >= marginX && x <= width - marginX) {
                         phi[idx] = 2.0;
                     } else {
                         phi[idx] = -2.0;
@@ -122,8 +131,9 @@
             }
 
             const dt = 0.5;
-            const lambda1 = 1.0, lambda2 = 1.0, mu = 0.02 * 255 * 255;
+            const lambda1 = 1.0, lambda2 = 1.0, mu = 0.1 * 255 * 255;
 
+            // 3. Loop Iterasi
             for (let iter = 1; iter <= numIter; iter++) {
                 let sumIn = 0, countIn = 0;
                 let sumOut = 0, countOut = 0;
@@ -165,19 +175,38 @@
                 }
             }
 
+            // 4. Visualisasi Kontur
             const outPixels = new Uint8ClampedArray(width * height * 4);
-            for (let i = 0; i < width * height; i++) {
-                const pxIdx = i * 4;
-                if (phi[i] > 0) {
-                    outPixels[pxIdx] = 255;
-                    outPixels[pxIdx + 1] = srcData[pxIdx + 1];
-                    outPixels[pxIdx + 2] = srcData[pxIdx + 2];
-                } else {
-                    outPixels[pxIdx] = srcData[pxIdx];
-                    outPixels[pxIdx + 1] = srcData[pxIdx + 1];
-                    outPixels[pxIdx + 2] = srcData[pxIdx + 2];
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    const idx = y * width + x;
+                    const pxIdx = idx * 4;
+
+                    let isBoundary = false;
+                    if (phi[idx] > 0) {
+                        if ((x > 0 && phi[idx - 1] <= 0) || 
+                            (x < width - 1 && phi[idx + 1] <= 0) || 
+                            (y > 0 && phi[idx - width] <= 0) || 
+                            (y < height - 1 && phi[idx + width] <= 0)) {
+                            isBoundary = true;
+                        }
+                    }
+
+                    if (isBoundary) {
+                        outPixels[pxIdx] = 255;
+                        outPixels[pxIdx + 1] = 0;
+                        outPixels[pxIdx + 2] = 0;
+                    } else if (phi[idx] > 0) {
+                        outPixels[pxIdx] = Math.min(255, srcData[pxIdx] + 60);
+                        outPixels[pxIdx + 1] = Math.round(srcData[pxIdx + 1] * 0.7);
+                        outPixels[pxIdx + 2] = Math.round(srcData[pxIdx + 2] * 0.7);
+                    } else {
+                        outPixels[pxIdx] = srcData[pxIdx];
+                        outPixels[pxIdx + 1] = srcData[pxIdx + 1];
+                        outPixels[pxIdx + 2] = srcData[pxIdx + 2];
+                    }
+                    outPixels[pxIdx + 3] = 255;
                 }
-                outPixels[pxIdx + 3] = 255;
             }
 
             self.postMessage({ type: 'done', outPixels: outPixels });
@@ -191,31 +220,35 @@
         }
 
         const numIter = parseInt(document.getElementById('edit1').value) || 500;
-        const btn = document.getElementById('btnProcess');
-        const progressContainer = document.getElementById('progressContainer');
-        const progressBar = document.getElementById('progressBar');
-        const statusText = document.getElementById('statusText');
+        
+        // Atur UI
+        document.getElementById('btnProcess').disabled = true;
+        document.getElementById('btnOpen').disabled = true;
+        document.getElementById('btnStop').disabled = false;
+        document.getElementById('progressContainer').style.display = 'block';
+        document.getElementById('progressBar').style.width = '0%';
+        document.getElementById('statusText').innerText = `Memulai pemrosesan ${numIter} iterasi...`;
 
-        btn.disabled = true;
-        progressContainer.style.display = 'block';
-        progressBar.style.width = '0%';
-        statusText.innerText = `Memulai pemrosesan ${numIter} iterasi di background thread...`;
+        // Matikan worker lama jika ada
+        if (activeWorker) {
+            activeWorker.terminate();
+        }
 
         const blob = new Blob([workerScript], { type: 'application/javascript' });
-        const worker = new Worker(URL.createObjectURL(blob));
+        activeWorker = new Worker(URL.createObjectURL(blob));
 
-        worker.postMessage({
+        activeWorker.postMessage({
             srcData: originalImageData.data,
             width: imgWidth,
             height: imgHeight,
             numIter: numIter
         });
 
-        worker.onmessage = function(e) {
+        activeWorker.onmessage = function(e) {
             if (e.data.type === 'progress') {
                 const percent = Math.round((e.data.iter / e.data.total) * 100);
-                progressBar.style.width = percent + '%';
-                statusText.innerText = `Memproses Citra Drone: Iterasi ${e.data.iter} dari ${e.data.total} (${percent}%)`;
+                document.getElementById('progressBar').style.width = percent + '%';
+                document.getElementById('statusText').innerText = `Memproses: Iterasi ${e.data.iter} / ${e.data.total} (${percent}%)`;
             } else if (e.data.type === 'done') {
                 const canvasOut = document.getElementById('canvasOutput');
                 const ctxOut = canvasOut.getContext('2d');
@@ -224,29 +257,54 @@
                 finalImgData.data.set(e.data.outPixels);
                 ctxOut.putImageData(finalImgData, 0, 0);
 
-                statusText.innerText = "Segmentasi Citra Drone Selesai pada Resolusi Asli!";
-                btn.disabled = false;
-                worker.terminate();
+                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur berhasil dibentuk.";
+                finishProcessingState();
             }
         };
 
-        worker.onerror = function(err) {
+        activeWorker.onerror = function(err) {
             console.error("Worker Error:", err);
-            statusText.innerText = "Terjadi kesalahan saat pemrosesan.";
-            btn.disabled = false;
+            document.getElementById('statusText').innerText = "Terjadi kesalahan saat pemrosesan.";
+            finishProcessingState();
         };
     }
 
+    // Fungsi Menghentikan Pemrosesan (Tombol STOP)
+    function stopSegmentation() {
+        if (activeWorker) {
+            activeWorker.terminate();
+            activeWorker = null;
+            document.getElementById('statusText').innerText = "Proses segmentasi dihentikan oleh pengguna.";
+            finishProcessingState();
+        }
+    }
+
+    // Fungsi Reset Keseluruhan (Tombol RESET)
     function resetApp() {
+        if (activeWorker) {
+            activeWorker.terminate();
+            activeWorker = null;
+        }
+
         originalImageData = null;
         document.getElementById('fileInput').value = '';
+        
         const canvasIn = document.getElementById('canvasInput');
         const canvasOut = document.getElementById('canvasOutput');
         canvasIn.getContext('2d').clearRect(0, 0, canvasIn.width, canvasIn.height);
         canvasOut.getContext('2d').clearRect(0, 0, canvasOut.width, canvasOut.height);
+        
         document.getElementById('statusText').innerText = "Aplikasi di-reset.";
         document.getElementById('progressContainer').style.display = 'none';
         document.getElementById('progressBar').style.width = '0%';
+        finishProcessingState();
+    }
+
+    // Helper mereset status tombol kembali aktif
+    function finishProcessingState() {
+        document.getElementById('btnProcess').disabled = false;
+        document.getElementById('btnOpen').disabled = false;
+        document.getElementById('btnStop').disabled = true;
     }
 </script>
 </body>
