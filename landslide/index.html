@@ -3,11 +3,11 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Landslide Identification - Active Contour (Chan-Vese)</title>
+    <title>Landslide Identification - Active Contour & FFD Lineaments</title>
     <style>
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #334155; }
-        .container { max-width: 1400px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        .container { max-width: 1600px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
         
         /* Navigation Top Bar */
         .top-nav { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 15px; }
@@ -31,10 +31,10 @@
         .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 10px; display: none; }
         .progress-bar { width: 0%; height: 100%; background: #2563eb; transition: width 0.2s; }
         
-        /* Grid Layout 3 Panel Canvas */
-        .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-top: 15px; }
+        /* Grid Layout 4 Panel Canvas */
+        .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 15px; margin-top: 15px; }
         .canvas-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
-        .canvas-card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.05rem; color: #475569; }
+        .canvas-card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.0rem; color: #475569; }
         canvas { max-width: 100%; height: auto; border: 1px solid #cbd5e1; border-radius: 4px; background: #000; }
         #statusText { text-align: center; margin-top: 10px; font-weight: 600; color: #2563eb; }
     </style>
@@ -47,7 +47,7 @@
         <a href="../index.html" class="btn-back">&larr; Kembali ke Projects</a>
     </div>
 
-    <h1>Landslide Identification - Active Contour (Chan-Vese)</h1>
+    <h1>Landslide Identification - Active Contour & Fault Fracture Density (FFD)</h1>
 
     <div class="control-panel">
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
@@ -70,8 +70,8 @@
         <!-- 4. Reset -->
         <button class="btn btn-danger" id="btnReset" onclick="resetApp()">4. Reset</button>
 
-        <!-- 5. Copyright (Membuka file landslide/copyright.pdf) -->
-        <button class="btn btn-info" id="btnCopyright" onclick="window.open('copyright.pdf', '_blank')">5. Copyright</button>
+        <!-- 5. Copyright -->
+        <button class="btn btn-info" id="btnCopyright" onclick="window.open('https://github.com/nanang1212/projects/blob/main/landslide/copyright.pdf', '_blank')">5. Copyright</button>
     </div>
 
     <div id="statusText">Pilih file citra drone untuk memulai...</div>
@@ -85,12 +85,16 @@
             <canvas id="canvasInput"></canvas>
         </div>
         <div class="canvas-card">
-            <h3>2. Active Contour (Vector Chan-Vese)</h3>
+            <h3>2. Active Contour (Chan-Vese)</h3>
             <canvas id="canvasOutput"></canvas>
         </div>
         <div class="canvas-card">
             <h3>3. Hasil Identifikasi (Mask Biner)</h3>
             <canvas id="canvasMask"></canvas>
+        </div>
+        <div class="canvas-card">
+            <h3>4. Garis Kelurusan Longsor (FFD Analysis)</h3>
+            <canvas id="canvasFFD"></canvas>
         </div>
     </div>
 </div>
@@ -115,10 +119,12 @@
                 const canvasIn = document.getElementById('canvasInput');
                 const canvasOut = document.getElementById('canvasOutput');
                 const canvasMask = document.getElementById('canvasMask');
+                const canvasFFD = document.getElementById('canvasFFD');
 
                 canvasIn.width = imgWidth; canvasIn.height = imgHeight;
                 canvasOut.width = imgWidth; canvasOut.height = imgHeight;
                 canvasMask.width = imgWidth; canvasMask.height = imgHeight;
+                canvasFFD.width = imgWidth; canvasFFD.height = imgHeight;
 
                 const ctxIn = canvasIn.getContext('2d');
                 ctxIn.drawImage(img, 0, 0);
@@ -132,9 +138,10 @@
                 ctxIn.lineWidth = Math.max(3, Math.round(imgWidth / 250));
                 ctxIn.strokeRect(marginX, marginY, imgWidth - 2 * marginX, imgHeight - 2 * marginY);
 
-                // Bersihkan canvas 2 dan 3
+                // Bersihkan canvas 2, 3, dan 4
                 canvasOut.getContext('2d').clearRect(0, 0, imgWidth, imgHeight);
                 canvasMask.getContext('2d').clearRect(0, 0, imgWidth, imgHeight);
+                canvasFFD.getContext('2d').clearRect(0, 0, imgWidth, imgHeight);
 
                 document.getElementById('statusText').innerText = `Citra dimuat (${imgWidth} x ${imgHeight} px). Siap diproses.`;
                 document.getElementById('progressContainer').style.display = 'none';
@@ -145,13 +152,39 @@
         reader.readAsDataURL(file);
     });
 
-    // Worker Web - Vector Chan-Vese Stabil (RGB Space)
+    // Worker Web - Chan-Vese + Analisis FFD & Garis Rekahan (Lineament)
     const workerScript = `
+        function drawLine(pixels, width, height, x0, y0, x1, y1, r, g, b, thickness) {
+            x0 = Math.round(x0); y0 = Math.round(y0);
+            x1 = Math.round(x1); y1 = Math.round(y1);
+            const dx = Math.abs(x1 - x0), sx = x0 < x1 ? 1 : -1;
+            const dy = -Math.abs(y1 - y0), sy = y0 < y1 ? 1 : -1;
+            let err = dx + dy, e2;
+            while (true) {
+                for (let ty = -thickness; ty <= thickness; ty++) {
+                    for (let tx = -thickness; tx <= thickness; tx++) {
+                        const px = x0 + tx, py = y0 + ty;
+                        if (px >= 0 && px < width && py >= 0 && py < height) {
+                            const idx = (py * width + px) * 4;
+                            pixels[idx] = r;
+                            pixels[idx+1] = g;
+                            pixels[idx+2] = b;
+                            pixels[idx+3] = 255;
+                        }
+                    }
+                }
+                if (x0 === x1 && y0 === y1) break;
+                e2 = 2 * err;
+                if (e2 >= dy) { err += dy; x0 += sx; }
+                if (e2 <= dx) { err += dx; y0 += sy; }
+            }
+        }
+
         self.onmessage = function(e) {
             const { srcData, width, height, numIter } = e.data;
             const len = width * height;
 
-            // 1. Ekstraksi Warna RGB Normalisasi [0.0 - 1.0]
+            // 1. Normalisasi RGB
             const R = new Float32Array(len);
             const G = new Float32Array(len);
             const B = new Float32Array(len);
@@ -178,12 +211,11 @@
                 }
             }
 
-            // Parameter Stabil (CFL Condition Safe: dt * mu <= 0.25)
             const dt = 0.8;
             const mu = 0.2; 
             const nextPhi = new Float32Array(len);
 
-            // 3. Iterasi Chan-Vese
+            // 3. Iterasi Active Contour
             for (let iter = 1; iter <= numIter; iter++) {
                 let sumR1 = 0, sumG1 = 0, sumB1 = 0, count1 = 0;
                 let sumR2 = 0, sumG2 = 0, sumB2 = 0, count2 = 0;
@@ -228,7 +260,6 @@
                     }
                 }
 
-                // Salin piksel batas tepi
                 for (let x = 0; x < width; x++) {
                     nextPhi[x] = phi[x];
                     nextPhi[(height - 1) * width + x] = phi[(height - 1) * width + x];
@@ -245,19 +276,21 @@
                 }
             }
 
-            // 4. Render Canvas Overlay & Canvas Mask Biner
+            // 4. Render Hasil Canvas 2, Canvas 3, dan Canvas 4 (FFD)
             const outPixels = new Uint8ClampedArray(len * 4);
             const maskPixels = new Uint8ClampedArray(len * 4);
+            const ffdPixels = new Uint8ClampedArray(len * 4);
+            const boundaryMap = new Uint8Array(len);
+
             const borderThickness = Math.max(1, Math.round(width / 500));
 
+            // Langkah A: Deteksi Boundary
             for (let y = 0; y < height; y++) {
                 for (let x = 0; x < width; x++) {
                     const idx = y * width + x;
                     const pxIdx = idx * 4;
-
                     const isInside = phi[idx] <= 0;
 
-                    // Deteksi Boundary
                     let isBoundary = false;
                     if (isInside) {
                         for (let dy = -borderThickness; dy <= borderThickness; dy++) {
@@ -275,37 +308,107 @@
                         }
                     }
 
-                    // Canvas 2: Overlay Hijau + Kontur Merah
+                    if (isBoundary) boundaryMap[idx] = 1;
+
+                    // Render Canvas 2 (Overlay Hijau/Merah)
                     if (isBoundary) {
-                        outPixels[pxIdx]     = 255;
-                        outPixels[pxIdx + 1] = 0;
-                        outPixels[pxIdx + 2] = 0;
+                        outPixels[pxIdx] = 255; outPixels[pxIdx + 1] = 0; outPixels[pxIdx + 2] = 0;
                     } else if (isInside) {
-                        outPixels[pxIdx]     = Math.round(srcData[pxIdx] * 0.3);
+                        outPixels[pxIdx] = Math.round(srcData[pxIdx] * 0.3);
                         outPixels[pxIdx + 1] = Math.min(255, srcData[pxIdx + 1] + 120);
                         outPixels[pxIdx + 2] = Math.round(srcData[pxIdx + 2] * 0.3);
                     } else {
-                        outPixels[pxIdx]     = srcData[pxIdx];
+                        outPixels[pxIdx] = srcData[pxIdx];
                         outPixels[pxIdx + 1] = srcData[pxIdx + 1];
                         outPixels[pxIdx + 2] = srcData[pxIdx + 2];
                     }
                     outPixels[pxIdx + 3] = 255;
 
-                    // Canvas 3: Mask Biner (Hitam & Putih)
+                    // Render Canvas 3 (Mask Biner Hitam-Putih)
                     if (isInside) {
-                        maskPixels[pxIdx]     = 255; // Putih
-                        maskPixels[pxIdx + 1] = 255;
-                        maskPixels[pxIdx + 2] = 255;
+                        maskPixels[pxIdx] = 255; maskPixels[pxIdx + 1] = 255; maskPixels[pxIdx + 2] = 255;
                     } else {
-                        maskPixels[pxIdx]     = 0;   // Hitam
-                        maskPixels[pxIdx + 1] = 0;
-                        maskPixels[pxIdx + 2] = 0;
+                        maskPixels[pxIdx] = 0; maskPixels[pxIdx + 1] = 0; maskPixels[pxIdx + 2] = 0;
                     }
                     maskPixels[pxIdx + 3] = 255;
+
+                    // Inisialisasi Canvas 4 dengan Citra Asli (Grayscale Agak Redup)
+                    const gray = Math.round(0.299 * srcData[pxIdx] + 0.587 * srcData[pxIdx + 1] + 0.114 * srcData[pxIdx + 2]) * 0.5;
+                    ffdPixels[pxIdx] = gray;
+                    ffdPixels[pxIdx + 1] = gray;
+                    ffdPixels[pxIdx + 2] = gray;
+                    ffdPixels[pxIdx + 3] = 255;
                 }
             }
 
-            self.postMessage({ type: 'done', outPixels: outPixels, maskPixels: maskPixels });
+            // Langkah B: Kalkulasi FFD (Grid Densitas & Ekstraksi Garis Kelurusan)
+            const gridSize = Math.max(16, Math.round(width / 35));
+            const lineThickness = Math.max(1, Math.round(width / 400));
+
+            for (let gy = 0; gy < height; gy += gridSize) {
+                for (let gx = 0; gx < width; gx += gridSize) {
+                    let boundaryCount = 0;
+                    let pointsX = [];
+                    let pointsY = [];
+
+                    for (let y = gy; y < Math.min(gy + gridSize, height); y++) {
+                        for (let x = gx; x < Math.min(gx + gridSize, width); x++) {
+                            const idx = y * width + x;
+                            if (boundaryMap[idx] === 1) {
+                                boundaryCount++;
+                                pointsX.push(x);
+                                pointsY.push(y);
+                            }
+                        }
+                    }
+
+                    const area = gridSize * gridSize;
+                    const density = boundaryCount / area;
+
+                    // Jika area memiliki Kerapatan Rekahan/FFD Tinggi (Pola terduga longsor)
+                    if (density > 0.04 && pointsX.length > 5) {
+                        // Highlight area densitas tinggi (Overlay Merah Transparan)
+                        for (let y = gy; y < Math.min(gy + gridSize, height); y++) {
+                            for (let x = gx; x < Math.min(gx + gridSize, width); x++) {
+                                const pxIdx = (y * width + x) * 4;
+                                ffdPixels[pxIdx] = Math.min(255, ffdPixels[pxIdx] + 100); // Merah
+                            }
+                        }
+
+                        // Hitung Arah Utama Kelurusan (Principal Orientation)
+                        let meanX = 0, meanY = 0;
+                        for (let i = 0; i < pointsX.length; i++) {
+                            meanX += pointsX[i];
+                            meanY += pointsY[i];
+                        }
+                        meanX /= pointsX.length;
+                        meanY /= pointsY.length;
+
+                        let Cxx = 0, Cyy = 0, Cxy = 0;
+                        for (let i = 0; i < pointsX.length; i++) {
+                            const dx = pointsX[i] - meanX;
+                            const dy = pointsY[i] - meanY;
+                            Cxx += dx * dx;
+                            Cyy += dy * dy;
+                            Cxy += dx * dy;
+                        }
+
+                        // Sudut Rekahan Dominan (Fault Fracture Lineament Angle)
+                        const angle = 0.5 * Math.atan2(2 * Cxy, Cxx - Cyy);
+                        const lineLen = gridSize * 0.95;
+
+                        const x0 = meanX - (lineLen / 2) * Math.cos(angle);
+                        const y0 = meanY - (lineLen / 2) * Math.sin(angle);
+                        const x1 = meanX + (lineLen / 2) * Math.cos(angle);
+                        const y1 = meanY + (lineLen / 2) * Math.sin(angle);
+
+                        // Gambar Garis Kelurusan Longsor Tegas (Warna Kuning Terang #facc15)
+                        drawLine(ffdPixels, width, height, x0, y0, x1, y1, 250, 204, 21, lineThickness);
+                    }
+                }
+            }
+
+            self.postMessage({ type: 'done', outPixels: outPixels, maskPixels: maskPixels, ffdPixels: ffdPixels });
         };
     `;
 
@@ -322,7 +425,7 @@
         document.getElementById('btnStop').disabled = false;
         document.getElementById('progressContainer').style.display = 'block';
         document.getElementById('progressBar').style.width = '0%';
-        document.getElementById('statusText').innerText = `Memulai segmentasi ${numIter} iterasi...`;
+        document.getElementById('statusText').innerText = `Memulai segmentasi & analisis FFD (${numIter} iterasi)...`;
 
         if (activeWorker) activeWorker.terminate();
 
@@ -356,7 +459,14 @@
                 maskImgData.data.set(e.data.maskPixels);
                 ctxMask.putImageData(maskImgData, 0, 0);
 
-                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur & Mask Biner berhasil terbentuk sempurna.";
+                // Render Canvas 4 (Analisis Garis Kelurusan FFD Longsor)
+                const canvasFFD = document.getElementById('canvasFFD');
+                const ctxFFD = canvasFFD.getContext('2d');
+                const ffdImgData = ctxFFD.createImageData(imgWidth, imgHeight);
+                ffdImgData.data.set(e.data.ffdPixels);
+                ctxFFD.putImageData(ffdImgData, 0, 0);
+
+                document.getElementById('statusText').innerText = "Proses Selesai! Kontur, Mask Biner, dan Garis Kelurusan Longsor (FFD) berhasil terbentuk.";
                 finishProcessingState();
             }
         };
@@ -389,10 +499,12 @@
         const canvasIn = document.getElementById('canvasInput');
         const canvasOut = document.getElementById('canvasOutput');
         const canvasMask = document.getElementById('canvasMask');
+        const canvasFFD = document.getElementById('canvasFFD');
 
         canvasIn.getContext('2d').clearRect(0, 0, canvasIn.width, canvasIn.height);
         canvasOut.getContext('2d').clearRect(0, 0, canvasOut.width, canvasOut.height);
         canvasMask.getContext('2d').clearRect(0, 0, canvasMask.width, canvasMask.height);
+        canvasFFD.getContext('2d').clearRect(0, 0, canvasFFD.width, canvasFFD.height);
 
         document.getElementById('statusText').innerText = "Aplikasi di-reset.";
         document.getElementById('progressContainer').style.display = 'none';
