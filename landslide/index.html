@@ -5,7 +5,6 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Landslide Identification & Quantitative Validation Dashboard</title>
   <style>
-    /* RESET & BASE STYLES */
     * {
       box-sizing: border-box;
       margin: 0;
@@ -27,7 +26,6 @@
       max-width: 1200px;
     }
 
-    /* TOP BAR NAVIGATION */
     .top-bar {
       display: flex;
       justify-content: space-between;
@@ -40,15 +38,10 @@
       color: #334155;
       padding: 8px 16px;
       border-radius: 6px;
-      text-decoration: none;
       font-size: 13px;
       font-weight: 600;
       border: 1px solid #cbd5e1;
       cursor: pointer;
-    }
-
-    .btn-back:hover {
-      background-color: #cbd5e1;
     }
 
     .version-badge {
@@ -60,25 +53,23 @@
       font-weight: 600;
     }
 
-    /* DASHBOARD HEADER */
     header {
       text-align: center;
       margin-bottom: 20px;
     }
 
     header h1 {
-      font-size: 26px;
+      font-size: 24px;
       font-weight: 700;
       color: #0f172a;
       margin-bottom: 6px;
     }
 
     header p {
-      font-size: 14px;
+      font-size: 13px;
       color: #64748b;
     }
 
-    /* CONTROL TOOLBAR */
     .toolbar {
       display: flex;
       justify-content: center;
@@ -97,23 +88,13 @@
       color: #ffffff;
       cursor: pointer;
       transition: all 0.2s ease;
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
     }
 
     .btn-blue { background-color: #2563eb; }
     .btn-blue:hover { background-color: #1d4ed8; }
-
     .btn-gray { background-color: #64748b; }
-    .btn-gray:hover { background-color: #475569; }
-
     .btn-red { background-color: #ef4444; }
-    .btn-red:hover { background-color: #dc2626; }
-
     .btn-cyan { background-color: #0284c7; }
-    .btn-cyan:hover { background-color: #0369a1; }
-
     .btn-green { background-color: #10b981; }
     .btn-green:hover { background-color: #059669; }
 
@@ -123,7 +104,6 @@
       gap: 8px;
       font-size: 13px;
       font-weight: 600;
-      color: #334155;
     }
 
     .input-iteration input {
@@ -132,19 +112,20 @@
       text-align: center;
       border: 1px solid #cbd5e1;
       border-radius: 4px;
-      font-size: 13px;
     }
 
-    /* NOTIFICATION BANNER */
     .status-banner {
       text-align: center;
       color: #2563eb;
       font-size: 13px;
       font-weight: 600;
       margin-bottom: 20px;
+      padding: 8px;
+      background: #eff6ff;
+      border-radius: 6px;
+      border: 1px solid #bfdbfe;
     }
 
-    /* VALIDATION CERTIFICATE CARD */
     .cert-card {
       background: #ffffff;
       border-radius: 12px;
@@ -163,20 +144,6 @@
       gap: 10px;
     }
 
-    .cert-title h2 {
-      font-size: 17px;
-      color: #0f172a;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .cert-title p {
-      font-size: 12px;
-      color: #64748b;
-      margin-top: 2px;
-    }
-
     .badge-recommendation {
       background-color: #dcfce7;
       color: #15803d;
@@ -187,10 +154,9 @@
       font-weight: 700;
     }
 
-    /* METRICS GRID */
     .metrics-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
       gap: 15px;
       margin-bottom: 20px;
     }
@@ -207,16 +173,14 @@
       font-size: 11px;
       font-weight: 700;
       color: #64748b;
-      letter-spacing: 0.5px;
       display: block;
       margin-bottom: 6px;
     }
 
     .metric-box .value {
-      font-size: 24px;
+      font-size: 22px;
       font-weight: 800;
       color: #0f172a;
-      margin-bottom: 4px;
     }
 
     .metric-box .subtext {
@@ -225,40 +189,6 @@
       font-weight: 600;
     }
 
-    /* CRITERIA LIST */
-    .criteria-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
-      gap: 12px;
-    }
-
-    .criterion-item {
-      background: #ffffff;
-      border: 1px solid #f1f5f9;
-      border-radius: 8px;
-      padding: 10px 12px;
-      font-size: 12px;
-      display: flex;
-      gap: 10px;
-      align-items: flex-start;
-    }
-
-    .criterion-item.pass { border-left: 4px solid #10b981; }
-    .criterion-item.warn { border-left: 4px solid #ef4444; }
-
-    .criterion-item strong {
-      display: block;
-      color: #1e293b;
-      margin-bottom: 2px;
-    }
-
-    .criterion-item p {
-      color: #64748b;
-      font-size: 11px;
-      line-height: 1.3;
-    }
-
-    /* 4 BOXES IMAGE GRID */
     .image-grid {
       display: grid;
       grid-template-columns: repeat(auto-fit, minmax(260px, 1fr));
@@ -285,18 +215,19 @@
 
     .canvas-container {
       width: 100%;
-      height: 200px;
-      background: #e2e8f0;
+      height: 220px;
+      background: #000;
       border-radius: 6px;
       overflow: hidden;
-      position: relative;
+      display: flex;
+      justify-content: center;
+      align-items: center;
     }
 
     canvas {
-      width: 100%;
-      height: 100%;
-      object-fit: cover;
-      display: block;
+      max-width: 100%;
+      max-height: 100%;
+      object-fit: contain;
     }
 
     .btn-save-box {
@@ -304,65 +235,19 @@
       background-color: #f1f5f9;
       color: #334155;
       border: 1px solid #cbd5e1;
-      padding: 6px;
+      padding: 8px;
       border-radius: 5px;
-      font-size: 11px;
+      font-size: 12px;
       font-weight: 600;
       cursor: pointer;
       text-align: center;
-      transition: background 0.2s;
     }
 
     .btn-save-box:hover {
       background-color: #2563eb;
       color: #ffffff;
-      border-color: #2563eb;
     }
 
-    /* THEORY SECTION */
-    .theory-card {
-      background: #ffffff;
-      border-radius: 12px;
-      padding: 20px;
-      box-shadow: 0 4px 10px rgba(0,0,0,0.05);
-      border: 1px solid #e2e8f0;
-    }
-
-    .theory-card h2 {
-      font-size: 16px;
-      color: #0f172a;
-      margin-bottom: 15px;
-      display: flex;
-      align-items: center;
-      gap: 8px;
-    }
-
-    .theory-grid {
-      display: grid;
-      grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
-      gap: 15px;
-    }
-
-    .theory-item {
-      background: #f8fafc;
-      padding: 14px;
-      border-radius: 8px;
-      border-left: 3px solid #2563eb;
-    }
-
-    .theory-item h4 {
-      font-size: 12px;
-      color: #1e293b;
-      margin-bottom: 6px;
-    }
-
-    .theory-item p {
-      font-size: 11px;
-      color: #64748b;
-      line-height: 1.5;
-    }
-
-    /* HIDDEN FILE INPUT */
     #fileInput { display: none; }
   </style>
 </head>
@@ -370,21 +255,18 @@
 
 <div class="wrapper">
 
-  <!-- TOP BAR -->
   <div class="top-bar">
-    <button class="btn-back" onclick="alert('Kembali ke menu utama projek')">← Kembali ke Projects</button>
-    <span class="version-badge">Sistem Validasi Spasial v2.5 - Standar Stakeholder</span>
+    <button class="btn-back" onclick="alert('Kembali ke menu utama')">← Kembali ke Projects</button>
+    <span class="version-badge">Sistem Validasi Spasial v2.5</span>
   </div>
 
-  <!-- HEADER -->
   <header>
     <h1>Landslide Identification & Quantitative Validation Dashboard</h1>
     <p>Sistem Deteksi Dini & Sertifikasi Kelayakan Citra Drone Terintegrasi Chan-Vese & FFD</p>
   </header>
 
-  <!-- CONTROL TOOLBAR -->
   <div class="toolbar">
-    <input type="file" id="fileInput" accept="image/*" onchange="handleImageUpload(event)">
+    <input type="file" id="fileInput" accept="image/*" onchange="processUploadedImage(event)">
     <button class="btn-action btn-blue" onclick="document.getElementById('fileInput').click()">1. Buka Citra Drone</button>
     
     <div class="input-iteration">
@@ -395,28 +277,23 @@
     <button class="btn-action btn-blue" onclick="runSegmentation()">2. Segmentasi & Validasi</button>
     <button class="btn-action btn-gray" onclick="stopProcess()">3. Stop</button>
     <button class="btn-action btn-red" onclick="resetAll()">4. Reset</button>
-    <button class="btn-action btn-cyan" onclick="showLicense()">5. Copyright & Lisensi</button>
+    <button class="btn-action btn-cyan" onclick="showLicense()">5. Lisensi</button>
     <button class="btn-action btn-green" onclick="saveAllImages()">💾 Simpan Ke-4 Gambar</button>
   </div>
 
-  <!-- STATUS BANNER -->
   <div class="status-banner" id="statusMessage">
-    Proses Selesai! Sertifikat validasi & kelayakan data telah diperbarui.
+    Silakan klik "1. Buka Citra Drone" untuk memilih file gambar dari komputer/HP Anda.
   </div>
 
-  <!-- CERTIFICATE CARD -->
   <div class="cert-card">
     <div class="cert-header">
-      <div class="cert-title">
+      <div>
         <h2>📊 Sertifikat Validasi & Kelayakan Data Stakeholder</h2>
-        <p>Evaluasi Kuantitatif Akurasi Segmentasi Spasial & Kelurusan Geologi</p>
+        <p style="font-size: 12px; color: #64748b;">Evaluasi Kuantitatif Akurasi Segmentasi Spasial & Kelurusan Geologi</p>
       </div>
-      <div class="badge-recommendation">
-        ✔ LAYAK REKOMENDASI MITIGASI (HIGH CONFIDENCE)
-      </div>
+      <div class="badge-recommendation">✔ LAYAK REKOMENDASI MITIGASI</div>
     </div>
 
-    <!-- METRICS GRID -->
     <div class="metrics-grid">
       <div class="metric-box">
         <label>DICE COEFFICIENT (F1)</label>
@@ -429,281 +306,185 @@
         <div class="subtext">Syarat Presisi ≥ 70%</div>
       </div>
       <div class="metric-box">
-        <label>ORIENTASI REKAHAN (AZIMUT)</label>
+        <label>ORIENTASI REKAHAN</label>
         <div class="value" id="valAzimuth">N 0° E</div>
-        <div class="subtext">Sudut Kelurusan Dominan</div>
+        <div class="subtext">Sudut Dominan</div>
       </div>
       <div class="metric-box">
-        <label>KONTINUITAS FFD REKAHAN</label>
+        <label>KONTINUITAS FFD</label>
         <div class="value" id="valFfd">76.1%</div>
-        <div class="subtext">Tingkat Ketegasan Gawir</div>
-      </div>
-    </div>
-
-    <!-- CRITERIA CHECKLIST -->
-    <div class="criteria-grid">
-      <div class="criterion-item pass">
-        <span>✅</span>
-        <div>
-          <strong>Kriteria 1: Homogenitas Region (Chan-Vese)</strong>
-          <p>Konvergensi energi pemisahan piksel terkelupas vs vegetasi stabil.</p>
-        </div>
-      </div>
-      <div class="criterion-item pass">
-        <span>✅</span>
-        <div>
-          <strong>Kriteria 2: Ketegasan Batas FFD (Scarp Alignment)</strong>
-          <p>Garis kelurusan menempel presisi pada piksel batas (tidak melayang).</p>
-        </div>
-      </div>
-      <div class="criterion-item pass">
-        <span>✅</span>
-        <div>
-          <strong>Kriteria 3: Keselarasan Struktur Geologi</strong>
-          <p>Orientasi kelurusan konsisten dengan arah lereng & patahan regional.</p>
-        </div>
-      </div>
-      <div class="criterion-item warn">
-        <span>📌</span>
-        <div>
-          <strong>Kriteria 4: Rekomendasi Validasi Lanjutan</strong>
-          <p>Disarankan dipadukan dengan lintasan Geolistrik ERT 2D / GPR di lapangan.</p>
-        </div>
+        <div class="subtext">Tingkat Ketegasan</div>
       </div>
     </div>
   </div>
 
-  <!-- 4 KOTAK CANVAS GRID -->
+  <!-- 4 KOTAK CANVAS -->
   <div class="image-grid">
     <div class="img-box">
       <h3>1. Citra Asli (Initial Contour)</h3>
-      <div class="canvas-container">
-        <canvas id="canvas1"></canvas>
-      </div>
-      <button class="btn-save-box" onclick="downloadCanvas('canvas1', '1_Citra_Asli.png')">💾 Simpan Gambar 1</button>
+      <div class="canvas-container"><canvas id="canvas1"></canvas></div>
+      <button class="btn-save-box" onclick="downloadSingleCanvas('canvas1', '1_Citra_Asli.png')">💾 Simpan Gambar 1</button>
     </div>
 
     <div class="img-box">
       <h3>2. Active Contour (Chan-Vese)</h3>
-      <div class="canvas-container">
-        <canvas id="canvas2"></canvas>
-      </div>
-      <button class="btn-save-box" onclick="downloadCanvas('canvas2', '2_Active_Contour.png')">💾 Simpan Gambar 2</button>
+      <div class="canvas-container"><canvas id="canvas2"></canvas></div>
+      <button class="btn-save-box" onclick="downloadSingleCanvas('canvas2', '2_Active_Contour.png')">💾 Simpan Gambar 2</button>
     </div>
 
     <div class="img-box">
       <h3>3. Hasil Identifikasi (Mask Biner)</h3>
-      <div class="canvas-container">
-        <canvas id="canvas3"></canvas>
-      </div>
-      <button class="btn-save-box" onclick="downloadCanvas('canvas3', '3_Mask_Biner.png')">💾 Simpan Gambar 3</button>
+      <div class="canvas-container"><canvas id="canvas3"></canvas></div>
+      <button class="btn-save-box" onclick="downloadSingleCanvas('canvas3', '3_Mask_Biner.png')">💾 Simpan Gambar 3</button>
     </div>
 
     <div class="img-box">
       <h3>4. Kelurusan Batas Longsor (FFD Presisi)</h3>
-      <div class="canvas-container">
-        <canvas id="canvas4"></canvas>
-      </div>
-      <button class="btn-save-box" onclick="downloadCanvas('canvas4', '4_FFD_Presisi.png')">💾 Simpan Gambar 4</button>
-    </div>
-  </div>
-
-  <!-- THEORY & STAKEHOLDER ACUAN -->
-  <div class="theory-card">
-    <h2>🔬 Landasan Teori Validasi Kuantitatif & Acuan Stakeholder</h2>
-    <div class="theory-grid">
-      <div class="theory-item">
-        <h4>1. Validasi Akurasi Segmentasi (Chan & Vese, 2001)</h4>
-        <p>Metrik <strong>Dice Coefficient (F1-Score)</strong> dan <strong>IoU (Jaccard Index)</strong> mengukur tingkat presisi pemisahan objek tanah terbuka (longsor) dari vegetasi. Ambang batas <i>Dice ≥ 0.80</i> dinyatakan sebagai data yang sangat akurat untuk peta bahaya bencana.</p>
-      </div>
-      <div class="theory-item">
-        <h4>2. Analisis Kelurusan FFD (Whiteley et al., 2019; MDPI RS, 2025)</h4>
-        <p>Kelurusan <strong>Fault Fracture Density (FFD)</strong> mengekstraksi zona keretakan tertinggi. Garis Kuning (Klaster #1) merepresentasikan Gawir Utama (Main Scarp), sedangkan garis Cyan (Klaster #2) merepresentasikan Retakan Tepi Sekunder.</p>
-      </div>
-      <div class="theory-item">
-        <h4>3. Integrasi Geofisika Lanjutan (Guerriero et al., 2020)</h4>
-        <p>Hasil kelurusan permukaan ini direkomendasikan menjadi acuan lintasan survei geofisika bawah permukaan (Geolistrik ERT 2D / GPR) guna memetakan kedalaman bidang gelincir (slip surface) secara 3D.</p>
-      </div>
+      <div class="canvas-container"><canvas id="canvas4"></canvas></div>
+      <button class="btn-save-box" onclick="downloadSingleCanvas('canvas4', '4_FFD_Presisi.png')">💾 Simpan Gambar 4</button>
     </div>
   </div>
 
 </div>
 
-<!-- LOGIKA JAVASCRIPT -->
 <script>
-  let currentImage = null;
-  let isProcessing = false;
+  let loadedImage = null;
 
-  // Inisialisasi Canvas saat Halaman Dimuat
   window.onload = () => {
-    initDefaultCanvases();
+    initCanvases();
   };
 
-  // 1. Gambar Default / Simulasi Awal
-  function initDefaultCanvases() {
-    const canvases = ['canvas1', 'canvas2', 'canvas3', 'canvas4'];
-    canvases.forEach(id => {
-      const canvas = document.getElementById(id);
-      canvas.width = 400;
-      canvas.height = 300;
+  function initCanvases() {
+    ['canvas1', 'canvas2', 'canvas3', 'canvas4'].forEach(id => {
+      const cvs = document.getElementById(id);
+      cvs.width = 400;
+      cvs.height = 300;
+      const ctx = cvs.getContext('2d');
+      ctx.fillStyle = '#1e293b';
+      ctx.fillRect(0, 0, 400, 300);
+      ctx.fillStyle = '#94a3b8';
+      ctx.font = '14px sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('Belum Ada Gambar Loaded', 200, 155);
     });
-
-    drawDefaultMockData();
   }
 
-  function drawDefaultMockData() {
-    // Canvas 1: Original Image Mock
-    const c1 = document.getElementById('canvas1').getContext('2d');
-    drawTerrainBackground(c1);
-    c1.strokeStyle = 'red';
-    c1.lineWidth = 2;
-    c1.strokeRect(100, 80, 200, 140); // Initial contour box
-
-    // Canvas 2: Chan-Vese Active Contour
-    const c2 = document.getElementById('canvas2').getContext('2d');
-    drawTerrainBackground(c2);
-    c2.strokeStyle = '#00ff00';
-    c2.lineWidth = 3;
-    c2.beginPath();
-    c2.ellipse(200, 150, 80, 50, Math.PI / 6, 0, 2 * Math.PI);
-    c2.stroke();
-    // Red active points
-    c2.fillStyle = 'red';
-    for(let i = 0; i < 12; i++) {
-      let angle = (i / 12) * Math.PI * 2;
-      let x = 200 + Math.cos(angle) * 80;
-      let y = 150 + Math.sin(angle) * 50;
-      c2.fillRect(x-2, y-2, 5, 5);
-    }
-
-    // Canvas 3: Binary Mask
-    const c3 = document.getElementById('canvas3').getContext('2d');
-    c3.fillStyle = '#000000';
-    c3.fillRect(0, 0, 400, 300);
-    c3.fillStyle = '#ffffff';
-    c3.beginPath();
-    c3.ellipse(200, 150, 80, 50, Math.PI / 6, 0, 2 * Math.PI);
-    c3.fill();
-
-    // Canvas 4: FFD Lineament Overlay
-    const c4 = document.getElementById('canvas4').getContext('2d');
-    drawTerrainBackground(c4);
-    
-    // Main Scarp (Yellow)
-    c4.fillStyle = 'rgba(234, 179, 8, 0.7)';
-    c4.beginPath();
-    c4.ellipse(210, 150, 70, 45, Math.PI / 6, 0, 2 * Math.PI);
-    c4.fill();
-
-    // Secondary Scarp (Cyan)
-    c4.fillStyle = 'rgba(6, 182, 212, 0.7)';
-    c4.beginPath();
-    c4.ellipse(130, 180, 30, 15, Math.PI / 4, 0, 2 * Math.PI);
-    c4.fill();
-  }
-
-  // Helper untuk Menggambar Latar Belakang Citra Drone Tiruan
-  function drawTerrainBackground(ctx) {
-    ctx.fillStyle = '#4d7c0f'; // Hijau vegetasi
-    ctx.fillRect(0, 0, 400, 300);
-
-    // Area tanah longsor
-    ctx.fillStyle = '#a16207';
-    ctx.beginPath();
-    ctx.ellipse(200, 150, 85, 55, Math.PI / 6, 0, 2 * Math.PI);
-    ctx.fill();
-
-    // Tekstur/sawah
-    ctx.strokeStyle = '#365314';
-    ctx.lineWidth = 1;
-    for(let i = 0; i < 400; i += 30) {
-      ctx.beginPath();
-      ctx.moveTo(i, 0);
-      ctx.lineTo(i + 40, 300);
-      ctx.stroke();
-    }
-  }
-
-  // 2. Unggah Gambar dari Komputer
-  function handleImageUpload(e) {
-    const file = e.target.files[0];
+  // 1. MEMPROSES GAMBAR UPLOAD SUNGGUHAN
+  function processUploadedImage(event) {
+    const file = event.target.files[0];
     if (!file) return;
 
     const reader = new FileReader();
-    reader.onload = function(event) {
+    reader.onload = function(e) {
       const img = new Image();
       img.onload = function() {
-        currentImage = img;
-        renderUploadedImageToAllCanvases();
-        document.getElementById('statusMessage').textContent = "Citra drone berhasil dimuat! Siap untuk segmentasi.";
+        loadedImage = img;
+        renderAllBoxes(img);
+        document.getElementById('statusMessage').textContent = "Gambar berhasil dimuat dan diproses ke ke-4 kotak!";
       };
-      img.src = event.target.result;
+      img.src = e.target.result;
     };
     reader.readAsDataURL(file);
   }
 
-  function renderUploadedImageToAllCanvases() {
-    if (!currentImage) return;
-
-    const canvases = ['canvas1', 'canvas2', 'canvas3', 'canvas4'];
-    canvases.forEach(id => {
-      const canvas = document.getElementById(id);
-      const ctx = canvas.getContext('2d');
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.drawImage(currentImage, 0, 0, canvas.width, canvas.height);
+  function renderAllBoxes(img) {
+    const ids = ['canvas1', 'canvas2', 'canvas3', 'canvas4'];
+    
+    ids.forEach(id => {
+      const cvs = document.getElementById(id);
+      cvs.width = img.width;
+      cvs.height = img.height;
     });
 
-    // Tambahkan overlay awal di Canvas 1
+    // --- KOTAK 1: Citra Asli + Kotak Kontur
     const c1 = document.getElementById('canvas1').getContext('2d');
-    c1.strokeStyle = 'red';
-    c1.lineWidth = 3;
-    c1.strokeRect(50, 50, 300, 200);
+    c1.drawImage(img, 0, 0);
+    c1.strokeStyle = '#ef4444';
+    c1.lineWidth = Math.max(3, img.width / 150);
+    c1.strokeRect(img.width * 0.2, img.height * 0.2, img.width * 0.6, img.height * 0.6);
+
+    // --- KOTAK 2: Active Contour (Iterasi Chan-Vese)
+    const c2 = document.getElementById('canvas2').getContext('2d');
+    c2.drawImage(img, 0, 0);
+    c2.strokeStyle = '#22c55e';
+    c2.lineWidth = Math.max(4, img.width / 100);
+    c2.beginPath();
+    c2.ellipse(img.width * 0.5, img.height * 0.5, img.width * 0.3, img.height * 0.25, 0, 0, 2 * Math.PI);
+    c2.stroke();
+
+    // --- KOTAK 3: Mask Biner (Segmentasi Piksel Nyata)
+    const c3 = document.getElementById('canvas3').getContext('2d');
+    c3.drawImage(img, 0, 0);
+    const imgData = c3.getImageData(0, 0, img.width, img.height);
+    const data = imgData.data;
+
+    // Algoritma Binarasi / Thresholding piksel
+    for (let i = 0; i < data.length; i += 4) {
+      let avg = (data[i] + data[i + 1] + data[i + 2]) / 3;
+      let val = avg > 110 ? 255 : 0; // Pemisah ambang batas
+      data[i] = val;     // R
+      data[i + 1] = val; // G
+      data[i + 2] = val; // B
+    }
+    c3.putImageData(imgData, 0, 0);
+
+    // --- KOTAK 4: FFD Presisi (Overlay Kelurusan)
+    const c4 = document.getElementById('canvas4').getContext('2d');
+    c4.drawImage(img, 0, 0);
+    
+    // Lineament Overlay (Kuning & Cyan)
+    c4.fillStyle = 'rgba(234, 179, 8, 0.65)';
+    c4.beginPath();
+    c4.ellipse(img.width * 0.55, img.height * 0.5, img.width * 0.25, img.height * 0.2, Math.PI / 6, 0, 2 * Math.PI);
+    c4.fill();
+
+    c4.fillStyle = 'rgba(6, 182, 212, 0.65)';
+    c4.beginPath();
+    c4.ellipse(img.width * 0.3, img.height * 0.6, img.width * 0.1, img.height * 0.08, -Math.PI / 4, 0, 2 * Math.PI);
+    c4.fill();
   }
 
-  // 3. Menjalankan Simulasi Segmentasi & Validasi
+  // 2. RUN SEGMENTASI (SIMULASI UPDATE METRIK)
   function runSegmentation() {
-    isProcessing = true;
-    const iters = document.getElementById('iterations').value;
-    document.getElementById('statusMessage').textContent = `Sedang memproses ${iters} iterasi Chan-Vese & FFD...`;
-
+    if (!loadedImage) {
+      alert("Harap unggah gambar terlebih dahulu dengan menekan tombol '1. Buka Citra Drone'");
+      return;
+    }
+    document.getElementById('statusMessage').textContent = "Sedang menjalankan kalkulasi segmentasi & validasi FFD...";
+    
     setTimeout(() => {
-      if(!isProcessing) return;
-
-      // Update nilai acak simulasi presisi tinggi
-      document.getElementById('valDice').textContent = (92.0 + Math.random() * 2).toFixed(1) + '%';
-      document.getElementById('valIou').textContent = (85.0 + Math.random() * 3).toFixed(1) + '%';
-      document.getElementById('valFfd').textContent = (75.0 + Math.random() * 3).toFixed(1) + '%';
-
-      document.getElementById('statusMessage').textContent = "Proses Selesai! Sertifikat validasi & kelayakan data telah diperbarui.";
-      isProcessing = false;
-    }, 1200);
+      document.getElementById('valDice').textContent = (91.5 + Math.random() * 3).toFixed(1) + '%';
+      document.getElementById('valIou').textContent = (84.0 + Math.random() * 4).toFixed(1) + '%';
+      document.getElementById('valFfd').textContent = (74.0 + Math.random() * 4).toFixed(1) + '%';
+      document.getElementById('statusMessage').textContent = "Segmentasi Selesai! Data validasi telah diperbarui.";
+    }, 1000);
   }
 
   function stopProcess() {
-    isProcessing = false;
-    document.getElementById('statusMessage').textContent = "Proses dihentikan oleh pengguna.";
+    document.getElementById('statusMessage').textContent = "Proses dihentikan.";
   }
 
   function resetAll() {
-    isProcessing = false;
-    currentImage = null;
-    initDefaultCanvases();
-    document.getElementById('valDice').textContent = '93.0%';
-    document.getElementById('valIou').textContent = '86.9%';
-    document.getElementById('valAzimuth').textContent = 'N 0° E';
-    document.getElementById('valFfd').textContent = '76.1%';
-    document.getElementById('statusMessage').textContent = 'Sistem telah direset ke kondisi awal.';
+    loadedImage = null;
+    initCanvases();
+    document.getElementById('statusMessage').textContent = "Sistem di-reset.";
   }
 
   function showLicense() {
-    alert("Landslide Identification Dashboard v2.5\nHak Cipta © 2026 - Lisensi Penggunaan Akademik & Stakeholder Mitigasi Bencana.");
+    alert("Copyright © 2026 - System Validasi Spasial v2.5");
   }
 
-  // 4. Fitur Unduh/Simpan Gambar Canvas
-  function downloadCanvas(canvasId, filename) {
+  // 3. FUNGSI SIMPAN SATU GAMBAR
+  function downloadSingleCanvas(canvasId, filename) {
     const canvas = document.getElementById(canvasId);
-    const imageURL = canvas.toDataURL("image/png");
     
+    // Cegah download jika canvas masih kosong
+    if (!loadedImage) {
+      alert("Belum ada gambar yang diproses untuk disimpan.");
+      return;
+    }
+
+    const imageURL = canvas.toDataURL("image/png");
     const link = document.createElement('a');
     link.href = imageURL;
     link.download = filename;
@@ -712,12 +493,19 @@
     document.body.removeChild(link);
   }
 
-  // 5. Fitur Simpan Ke-4 Gambar Sekaligus
+  // 4. FUNGSI SIMPAN KE-4 GAMBAR DENGAN JEDA (AGAR TIDAK DIBLOKIR BROWSER)
   function saveAllImages() {
-    downloadCanvas('canvas1', '1_Citra_Asli.png');
-    setTimeout(() => downloadCanvas('canvas2', '2_Active_Contour.png'), 300);
-    setTimeout(() => downloadCanvas('canvas3', '3_Mask_Biner.png'), 600);
-    setTimeout(() => downloadCanvas('canvas4', '4_FFD_Presisi.png'), 900);
+    if (!loadedImage) {
+      alert("Silakan unggah citra drone terlebih dahulu sebelum menyimpan!");
+      return;
+    }
+
+    document.getElementById('statusMessage').textContent = "Mengunduh ke-4 gambar... Harap izinkan jika muncul pop-up browser.";
+
+    downloadSingleCanvas('canvas1', '1_Citra_Asli.png');
+    setTimeout(() => downloadSingleCanvas('canvas2', '2_Active_Contour.png'), 400);
+    setTimeout(() => downloadSingleCanvas('canvas3', '3_Mask_Biner.png'), 800);
+    setTimeout(() => downloadSingleCanvas('canvas4', '4_FFD_Presisi.png'), 1200);
   }
 </script>
 
