@@ -8,6 +8,12 @@
         * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
         body { background-color: #f1f5f9; margin: 0; padding: 20px; color: #334155; }
         .container { max-width: 1400px; margin: 0 auto; background: #ffffff; padding: 25px; border-radius: 12px; box-shadow: 0 4px 15px rgba(0,0,0,0.08); }
+        
+        /* Navigation Top Bar */
+        .top-nav { display: flex; justify-content: flex-start; align-items: center; margin-bottom: 15px; }
+        .btn-back { display: inline-flex; align-items: center; gap: 8px; text-decoration: none; color: #475569; font-weight: 600; font-size: 0.95rem; padding: 8px 14px; background: #e2e8f0; border-radius: 6px; transition: all 0.2s; }
+        .btn-back:hover { background: #cbd5e1; color: #0f172a; }
+
         h1 { text-align: center; color: #0f172a; margin-bottom: 20px; font-size: 1.8rem; }
         .control-panel { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: center; background: #f8fafc; padding: 15px; border-radius: 8px; border: 1px solid #e2e8f0; margin-bottom: 20px; }
         .btn { background-color: #2563eb; color: white; border: none; padding: 10px 16px; font-size: 0.95rem; font-weight: 600; border-radius: 6px; cursor: pointer; transition: background 0.2s; }
@@ -17,12 +23,15 @@
         .btn-warning:hover { background-color: #d97706; }
         .btn-danger { background-color: #ef4444; }
         .btn-danger:hover { background-color: #dc2626; }
+        .btn-info { background-color: #0284c7; color: white; }
+        .btn-info:hover { background-color: #0369a1; }
+
         .input-group { display: flex; align-items: center; gap: 8px; }
         input[type="number"] { width: 85px; padding: 8px; border: 1px solid #cbd5e1; border-radius: 6px; font-size: 0.95rem; text-align: center; }
         .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 10px; display: none; }
         .progress-bar { width: 0%; height: 100%; background: #2563eb; transition: width 0.2s; }
         
-        /* Layout 3 Panel Responsif */
+        /* Grid Layout 3 Panel Canvas */
         .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-top: 15px; }
         .canvas-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
         .canvas-card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.05rem; color: #475569; }
@@ -33,20 +42,36 @@
 <body>
 
 <div class="container">
+    <!-- Tombol Back ke Halaman Projects -->
+    <div class="top-nav">
+        <a href="../index.html" class="btn-back">&larr; Kembali ke Projects</a>
+    </div>
+
     <h1>Landslide Identification - Active Contour (Chan-Vese)</h1>
 
     <div class="control-panel">
         <input type="file" id="fileInput" accept="image/*" style="display: none;">
+        
+        <!-- 1. Buka Citra -->
         <button class="btn" id="btnOpen" onclick="document.getElementById('fileInput').click()">1. Buka Citra</button>
 
+        <!-- Input Iterasi -->
         <div class="input-group">
             <label for="edit1"><strong>Iterasi:</strong></label>
             <input type="number" id="edit1" value="300" min="1" max="5000">
         </div>
 
+        <!-- 2. Segmentasi -->
         <button class="btn" id="btnProcess" onclick="startSegmentation()">2. Segmentasi</button>
+        
+        <!-- 3. Stop -->
         <button class="btn btn-warning" id="btnStop" onclick="stopSegmentation()" disabled>3. Stop</button>
+        
+        <!-- 4. Reset -->
         <button class="btn btn-danger" id="btnReset" onclick="resetApp()">4. Reset</button>
+
+        <!-- 5. Copyright (Membuka file landslide/copyright.pdf) -->
+        <button class="btn btn-info" id="btnCopyright" onclick="window.open('landslide/copyright.pdf', '_blank')">5. Copyright</button>
     </div>
 
     <div id="statusText">Pilih file citra drone untuk memulai...</div>
@@ -120,7 +145,7 @@
         reader.readAsDataURL(file);
     });
 
-    // Worker Web - Stabil & Mencegah Noise Explosion
+    // Worker Web - Vector Chan-Vese Stabil (RGB Space)
     const workerScript = `
         self.onmessage = function(e) {
             const { srcData, width, height, numIter } = e.data;
@@ -220,7 +245,7 @@
                 }
             }
 
-            // 4. Render 2 Output: Canvas Overlay Hijau/Merah & Canvas Mask Hitam-Putih
+            // 4. Render Canvas Overlay & Canvas Mask Biner
             const outPixels = new Uint8ClampedArray(len * 4);
             const maskPixels = new Uint8ClampedArray(len * 4);
             const borderThickness = Math.max(1, Math.round(width / 500));
@@ -250,7 +275,7 @@
                         }
                     }
 
-                    // A. Output Canvas 2: Overlay Hijau + Kontur Merah (Sama persis seperti versi OK sebelumnya)
+                    // Canvas 2: Overlay Hijau + Kontur Merah
                     if (isBoundary) {
                         outPixels[pxIdx]     = 255;
                         outPixels[pxIdx + 1] = 0;
@@ -266,13 +291,13 @@
                     }
                     outPixels[pxIdx + 3] = 255;
 
-                    // B. Output Canvas 3: Mask Biner Identifikasi (Hitam & Putih)
+                    // Canvas 3: Mask Biner (Hitam & Putih)
                     if (isInside) {
-                        maskPixels[pxIdx]     = 255; // Putih (Area teridentifikasi)
+                        maskPixels[pxIdx]     = 255; // Putih
                         maskPixels[pxIdx + 1] = 255;
                         maskPixels[pxIdx + 2] = 255;
                     } else {
-                        maskPixels[pxIdx]     = 0;   // Hitam (Background)
+                        maskPixels[pxIdx]     = 0;   // Hitam
                         maskPixels[pxIdx + 1] = 0;
                         maskPixels[pxIdx + 2] = 0;
                     }
