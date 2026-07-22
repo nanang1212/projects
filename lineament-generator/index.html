@@ -1,1 +1,409 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GeoRose AI - Automated Lineament & Rose Diagram Generator</title>
+    
+    <!-- Tailwind CSS CDN -->
+    <script src="https://cdn.tailwindcss.com"></script>
+    
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    
+    <!-- FontAwesome CDN -->
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
 
+    <style>
+        .glass-panel {
+            background: rgba(15, 23, 42, 0.9);
+            backdrop-filter: blur(12px);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+        }
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0f172a; }
+        ::-webkit-scrollbar-thumb { background: #334155; border-radius: 3px; }
+    </style>
+</head>
+<body class="bg-slate-950 text-slate-100 font-sans min-h-screen flex flex-col">
+
+    <!-- Header -->
+    <header class="h-[65px] bg-slate-900 border-b border-slate-800 px-6 flex items-center justify-between">
+        <div class="flex items-center space-x-3">
+            <div class="bg-gradient-to-tr from-rose-500 to-amber-500 p-2 rounded-xl shadow-lg shadow-rose-500/20">
+                <i class="fa-solid fa-compass-drafting text-white text-xl"></i>
+            </div>
+            <div>
+                <h1 class="font-bold text-lg leading-tight bg-gradient-to-r from-white via-slate-200 to-rose-400 bg-clip-text text-transparent">
+                    GeoRose Structural AI
+                </h1>
+                <p class="text-xs text-slate-400">Ekstraksi Lineament Spasial & Pemetaan Diagram Mawar Tektonik</p>
+            </div>
+        </div>
+        <div class="flex items-center space-x-3 text-xs">
+            <span class="bg-rose-950 text-rose-300 border border-rose-800 px-3 py-1 rounded-full font-mono">
+                Algorithm: Directional Gradient Derivative
+            </span>
+        </div>
+    </header>
+
+    <!-- Main Workspace -->
+    <div class="flex-1 grid grid-cols-1 lg:grid-cols-12 gap-4 p-4 overflow-hidden">
+        
+        <!-- Left Panel: Control & Parameters -->
+        <div class="lg:col-span-3 glass-panel p-4 rounded-2xl flex flex-col space-y-4 overflow-y-auto">
+            <h2 class="font-bold text-sm uppercase tracking-wider text-slate-300 flex items-center gap-2 border-b border-slate-800 pb-2">
+                <i class="fa-solid fa-sliders text-rose-400"></i> Kontrol Ekstraksi
+            </h2>
+
+            <!-- Input Image Sources -->
+            <div class="space-y-2">
+                <label class="text-xs font-semibold text-slate-400">1. Sumber Citra Medan (DEM/Hillshade)</label>
+                <button onclick="generateSyntheticTerrain()" class="w-full bg-slate-800 hover:bg-slate-700 border border-slate-700 text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 transition">
+                    <i class="fa-solid fa-mountain text-amber-400"></i> Generasi Terrain Sintetis (Uji Coba)
+                </button>
+                <label class="w-full bg-slate-900 hover:bg-slate-800 border border-dashed border-slate-700 text-xs py-2 px-3 rounded-lg flex items-center justify-center gap-2 cursor-pointer transition">
+                    <i class="fa-solid fa-upload text-cyan-400"></i> Unggah Gambar DEM / Satelit
+                    <input type="file" id="imageInput" accept="image/*" class="hidden" onchange="loadUserImage(event)">
+                </label>
+            </div>
+
+            <!-- Parameters Sliders -->
+            <div class="space-y-4 pt-2">
+                <div>
+                    <div class="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>Sensitivitas Gradien (Threshold)</span>
+                        <span id="threshVal" class="font-mono text-rose-400">45</span>
+                    </div>
+                    <input type="range" id="threshSlider" min="10" max="150" value="45" oninput="updateAnalysis()" class="w-full accent-rose-500">
+                </div>
+
+                <div>
+                    <div class="flex justify-between text-xs text-slate-300 mb-1">
+                        <span>Resolusi Sektor (Bin Width)</span>
+                        <span id="binVal" class="font-mono text-rose-400">15° (24 Sektor)</span>
+                    </div>
+                    <select id="binSelect" onchange="updateAnalysis()" class="w-full bg-slate-950 border border-slate-800 text-xs rounded p-2 text-slate-200 focus:outline-none focus:border-rose-500">
+                        <option value="15">15° (Standar Geologi - 24 Bins)</option>
+                        <option value="10">10° (Detail Tinggi - 36 Bins)</option>
+                        <option value="30">30° (Sederhana - 12 Bins)</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Analysis Summary Box -->
+            <div class="bg-slate-950 p-3 rounded-xl border border-rose-500/30 space-y-2 mt-auto">
+                <h3 class="text-xs font-bold text-rose-300 uppercase flex items-center gap-2">
+                    <i class="fa-solid fa-chart-line"></i> Hasil Analisis Tektonik
+                </h3>
+                <div class="text-xs space-y-1">
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Total Kelurusan (Lineaments):</span>
+                        <span id="totalLines" class="font-bold text-slate-200">0</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Arah Jurus Utama (Dominant Strike):</span>
+                        <span id="dominantDir" class="font-bold text-amber-400">-</span>
+                    </div>
+                    <div class="flex justify-between">
+                        <span class="text-slate-400">Kecenderungan Tren:</span>
+                        <span id="trendName" class="font-bold text-emerald-400">-</span>
+                    </div>
+                </div>
+            </div>
+
+            <button onclick="exportCSV()" class="w-full bg-rose-600 hover:bg-rose-500 text-white font-bold py-2 rounded-lg text-xs transition shadow-lg shadow-rose-600/20">
+                <i class="fa-solid fa-file-csv mr-1"></i> Ekspor Data Azimuth (.CSV)
+            </button>
+        </div>
+
+        <!-- Center Panel: Image Canvas & Lineament Overlay -->
+        <div class="lg:col-span-5 glass-panel p-4 rounded-2xl flex flex-col items-center justify-center relative min-h-[400px]">
+            <div class="absolute top-4 left-4 z-10 bg-slate-900/80 px-3 py-1 rounded-lg border border-slate-800 text-xs font-semibold text-slate-300">
+                <i class="fa-solid fa-eye text-cyan-400 mr-1"></i> Deteksi Kelurusan Spasial (Vectors)
+            </div>
+            
+            <div class="relative w-full h-full flex items-center justify-center overflow-hidden rounded-xl border border-slate-800 bg-slate-950">
+                <canvas id="terrainCanvas" class="max-w-full max-h-full object-contain"></canvas>
+            </div>
+        </div>
+
+        <!-- Right Panel: Interactive Rose Diagram -->
+        <div class="lg:col-span-4 glass-panel p-4 rounded-2xl flex flex-col justify-between items-center">
+            <div class="w-full flex justify-between items-center border-b border-slate-800 pb-2">
+                <h2 class="font-bold text-sm uppercase tracking-wider text-slate-300 flex items-center gap-2">
+                    <i class="fa-solid fa-compass text-rose-400"></i> Diagram Mawar Geologi (Polar)
+                </h2>
+                <span class="text-[10px] bg-slate-800 text-slate-400 px-2 py-0.5 rounded">Simetris Axial (0-360°)</span>
+            </div>
+
+            <!-- Polar Area Chart Container -->
+            <div class="w-full h-[360px] relative flex items-center justify-center my-2">
+                <canvas id="roseChart"></canvas>
+            </div>
+
+            <p class="text-[11px] text-slate-400 text-center italic">
+                *Diagram menggambarkan frekuensi kelurusan arah jurus (strike azimuth). Puncak tertinggi menunjukkan arah gaya tekan tektonik dominan.
+            </p>
+        </div>
+
+    </div>
+
+    <!-- Application Script Logic -->
+    <script>
+        let terrainCanvas = document.getElementById('terrainCanvas');
+        let ctx = terrainCanvas.getContext('2d');
+        let roseChart = null;
+        let lineamentBins = [];
+        let currentImgData = null;
+
+        // Initialize App
+        window.onload = function() {
+            initChart();
+            generateSyntheticTerrain();
+        };
+
+        // 1. Generate Synthetic DEM Terrain with distinct geological fault patterns
+        function generateSyntheticTerrain() {
+            const width = 500;
+            const height = 500;
+            terrainCanvas.width = width;
+            terrainCanvas.height = height;
+
+            let imgData = ctx.createImageData(width, height);
+            let data = imgData.data;
+
+            // Generate synthetic hillshade + 2 main fault strike systems (NE-SW ~45° & NW-SE ~135°)
+            for (let y = 0; y < height; y++) {
+                for (let x = 0; x < width; x++) {
+                    let idx = (y * width + x) * 4;
+                    
+                    // Background terrain noise
+                    let val = (Math.sin(x/30) * Math.cos(y/30) * 40) + 128;
+
+                    // Fault System 1: NE-SW (~45 degrees)
+                    let line1 = Math.abs((x - y + 100) % 80);
+                    if (line1 < 4) val -= 70;
+
+                    // Fault System 2: NW-SE (~135 degrees)
+                    let line2 = Math.abs((x + y - 400) % 120);
+                    if (line2 < 3) val -= 50;
+
+                    // Clamp values
+                    val = Math.max(0, Math.min(255, val));
+
+                    data[idx] = val;     // R
+                    data[idx+1] = val;   // G
+                    data[idx+2] = val;   // B
+                    data[idx+3] = 255;   // Alpha
+                }
+            }
+
+            ctx.putImageData(imgData, 0, 0);
+            currentImgData = ctx.getImageData(0, 0, width, height);
+            analyzeLineaments();
+        }
+
+        // 2. Load User Uploaded Image
+        function loadUserImage(e) {
+            let reader = new FileReader();
+            reader.onload = function(event) {
+                let img = new Image();
+                img.onload = function() {
+                    terrainCanvas.width = img.width;
+                    terrainCanvas.height = img.height;
+                    ctx.drawImage(img, 0, 0);
+                    currentImgData = ctx.getImageData(0, 0, img.width, img.height);
+                    analyzeLineaments();
+                }
+                img.src = event.target.result;
+            }
+            reader.readAsDataURL(e.target.files[0]);
+        }
+
+        // 3. Core Algorithm: Sobel Spatial Gradients -> Lineament Orientation -> Binning
+        function analyzeLineaments() {
+            if (!currentImgData) return;
+
+            const width = currentImgData.width;
+            const height = currentImgData.height;
+            const data = currentImgData.data;
+            const threshold = parseInt(document.getElementById('threshSlider').value);
+            const binSize = parseInt(document.getElementById('binSelect').value);
+            
+            document.getElementById('threshVal').innerText = threshold;
+            document.getElementById('binVal').innerText = `${binSize}° (${360/binSize} Sektor)`;
+
+            const numBins = 180 / binSize; // 0 to 180 degrees (symmetric)
+            lineamentBins = new Array(numBins).fill(0);
+
+            // Redraw clean image
+            ctx.putImageData(currentImgData, 0, 0);
+            ctx.strokeStyle = '#06b6d4'; // Cyan vector lines
+            ctx.lineWidth = 1.5;
+
+            let totalDetected = 0;
+
+            // Apply Sobel Filter & Compute Gradient Directions
+            for (let y = 1; y < height - 1; y += 2) {
+                for (let x = 1; x < width - 1; x += 2) {
+                    
+                    // Sobel Kernels for Gx and Gy
+                    let gx = 
+                        -1 * getGray(data, x-1, y-1, width) + 1 * getGray(data, x+1, y-1, width) +
+                        -2 * getGray(data, x-1, y, width)   + 2 * getGray(data, x+1, y, width) +
+                        -1 * getGray(data, x-1, y+1, width) + 1 * getGray(data, x+1, y+1, width);
+
+                    let gy = 
+                        -1 * getGray(data, x-1, y-1, width) - 2 * getGray(data, x, y-1, width) - 1 * getGray(data, x+1, y-1, width) +
+                         1 * getGray(data, x-1, y+1, width) + 2 * getGray(data, x, y+1, width) + 1 * getGray(data, x+1, y+1, width);
+
+                    let magnitude = Math.sqrt(gx * gx + gy * gy);
+
+                    if (magnitude > threshold) {
+                        // Edge Direction is perpendicular to Gradient Vector
+                        let angleRad = Math.atan2(gy, gx) + (Math.PI / 2);
+                        let angleDeg = (angleRad * 180 / Math.PI) % 180;
+                        if (angleDeg < 0) angleDeg += 180;
+
+                        // Binning (0° - 180°)
+                        let binIdx = Math.floor(angleDeg / binSize) % numBins;
+                        lineamentBins[binIdx]++;
+                        totalDetected++;
+
+                        // Draw Overlay Vector Lineament
+                        let lineLen = 6;
+                        let dx = Math.cos(angleRad) * lineLen;
+                        let dy = Math.sin(angleRad) * lineLen;
+
+                        ctx.beginPath();
+                        ctx.moveTo(x - dx, y - dy);
+                        ctx.lineTo(x + dx, y + dy);
+                        ctx.stroke();
+                    }
+                }
+            }
+
+            updateSummary(totalDetected, binSize);
+            updateRoseChart(binSize);
+        }
+
+        // Helper Grayscale Calculation
+        function getGray(data, x, y, width) {
+            let idx = (y * width + x) * 4;
+            return (data[idx] + data[idx+1] + data[idx+2]) / 3;
+        }
+
+        function updateAnalysis() {
+            analyzeLineaments();
+        }
+
+        // 4. Update Geologic Analysis Summary
+        function updateSummary(total, binSize) {
+            document.getElementById('totalLines').innerText = total.toLocaleString();
+
+            let maxBinIdx = 0;
+            let maxVal = 0;
+            for (let i = 0; i < lineamentBins.length; i++) {
+                if (lineamentBins[i] > maxVal) {
+                    maxVal = lineamentBins[i];
+                    maxBinIdx = i;
+                }
+            }
+
+            let dominantAngle = maxBinIdx * binSize;
+            let strikeName = "";
+            let trend = "";
+
+            if (dominantAngle >= 22.5 && dominantAngle < 67.5) {
+                strikeName = `N ${dominantAngle}° E`;
+                trend = "North-East / South-West (NE-SW)";
+            } else if (dominantAngle >= 67.5 && dominantAngle < 112.5) {
+                strikeName = `N ${dominantAngle}° E (East-West)`;
+                trend = "East-West (E-W)";
+            } else if (dominantAngle >= 112.5 && dominantAngle < 157.5) {
+                strikeName = `N ${dominantAngle}° E`;
+                trend = "North-West / South-East (NW-SE)";
+            } else {
+                strikeName = `N ${dominantAngle}° E (North-South)`;
+                trend = "North-South (N-S)";
+            }
+
+            document.getElementById('dominantDir').innerText = strikeName;
+            document.getElementById('trendName').innerText = trend;
+        }
+
+        // 5. Render Chart.js Polar Diagram (360 Degree Geologic Mirroring)
+        function initChart() {
+            const ctxChart = document.getElementById('roseChart').getContext('2d');
+            roseChart = new Chart(ctxChart, {
+                type: 'polarArea',
+                data: {
+                    labels: [],
+                    datasets: [{
+                        data: [],
+                        backgroundColor: 'rgba(244, 63, 94, 0.55)', // Rose color
+                        borderColor: '#f43f5e',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    startAngle: -90, // North is UP (0 degrees)
+                    scales: {
+                        r: {
+                            grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                            ticks: { display: false },
+                            angleLines: { color: 'rgba(255, 255, 255, 0.2)' }
+                        }
+                    },
+                    plugins: {
+                        legend: { display: false }
+                    }
+                }
+            });
+        }
+
+        function updateRoseChart(binSize) {
+            let labels = [];
+            let full360Data = [];
+            let numBins180 = lineamentBins.length;
+
+            // Build Labels and Mirror 180° data to 360° for Geology Axial Symmetry
+            for (let i = 0; i < numBins180 * 2; i++) {
+                let deg = (i * binSize) % 360;
+                labels.push(`${deg}°`);
+                
+                // Symmetric Mirroring
+                let sourceIdx = i % numBins180;
+                full360Data.push(lineamentBins[sourceIdx]);
+            }
+
+            roseChart.data.labels = labels;
+            roseChart.data.datasets[0].data = full360Data;
+            roseChart.update();
+        }
+
+        // 6. CSV Export Function for Geologists
+        function exportCSV() {
+            let csvContent = "data:text/csv;charset=utf-8,Azimuth_Bin_Start_Deg,Azimuth_Bin_End_Deg,Lineament_Count\n";
+            let binSize = parseInt(document.getElementById('binSelect').value);
+
+            lineamentBins.forEach((count, idx) => {
+                let start = idx * binSize;
+                let end = start + binSize;
+                csvContent += `${start},${end},${count}\n`;
+            });
+
+            const encodedUri = encodeURI(csvContent);
+            const link = document.createElement("a");
+            link.setAttribute("href", encodedUri);
+            link.setAttribute("download", "georose_lineament_data.csv");
+            document.body.appendChild(link);
+            link.click();
+            document.body.removeChild(link);
+        }
+    </script>
+</body>
+</html>
