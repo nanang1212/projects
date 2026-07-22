@@ -22,7 +22,7 @@
         .progress-bar-container { width: 100%; background: #e2e8f0; border-radius: 6px; height: 12px; overflow: hidden; margin-top: 10px; display: none; }
         .progress-bar { width: 0%; height: 100%; background: #2563eb; transition: width 0.2s; }
         
-        /* Grid 3 Panel Layout */
+        /* Layout 3 Panel Responsif */
         .canvas-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 15px; margin-top: 15px; }
         .canvas-card { background: #f8fafc; border: 1px solid #e2e8f0; border-radius: 8px; padding: 12px; text-align: center; }
         .canvas-card h3 { margin-top: 0; margin-bottom: 10px; font-size: 1.05rem; color: #475569; }
@@ -60,7 +60,7 @@
             <canvas id="canvasInput"></canvas>
         </div>
         <div class="canvas-card">
-            <h3>2. Active Contour (Chan-Vese)</h3>
+            <h3>2. Active Contour (Vector Chan-Vese)</h3>
             <canvas id="canvasOutput"></canvas>
         </div>
         <div class="canvas-card">
@@ -120,7 +120,7 @@
         reader.readAsDataURL(file);
     });
 
-    // Worker Web - Vector Chan-Vese + Ekstraksi Mask Biner
+    // Worker Web - Stabil & Mencegah Noise Explosion
     const workerScript = `
         self.onmessage = function(e) {
             const { srcData, width, height, numIter } = e.data;
@@ -153,8 +153,9 @@
                 }
             }
 
-            const dt = 1.0;
-            const mu = 0.8; // Diperbesar agar kontur halus dan solid
+            // Parameter Stabil (CFL Condition Safe: dt * mu <= 0.25)
+            const dt = 0.8;
+            const mu = 0.2; 
             const nextPhi = new Float32Array(len);
 
             // 3. Iterasi Chan-Vese
@@ -249,7 +250,7 @@
                         }
                     }
 
-                    // A. Output Canvas 2: Overlay Hijau + Kontur Merah
+                    // A. Output Canvas 2: Overlay Hijau + Kontur Merah (Sama persis seperti versi OK sebelumnya)
                     if (isBoundary) {
                         outPixels[pxIdx]     = 255;
                         outPixels[pxIdx + 1] = 0;
@@ -267,7 +268,7 @@
 
                     // B. Output Canvas 3: Mask Biner Identifikasi (Hitam & Putih)
                     if (isInside) {
-                        maskPixels[pxIdx]     = 255; // Putih (Area longsor/objek)
+                        maskPixels[pxIdx]     = 255; // Putih (Area teridentifikasi)
                         maskPixels[pxIdx + 1] = 255;
                         maskPixels[pxIdx + 2] = 255;
                     } else {
@@ -316,7 +317,7 @@
                 document.getElementById('progressBar').style.width = percent + '%';
                 document.getElementById('statusText').innerText = `Memproses: Iterasi ${e.data.iter} / ${e.data.total} (${percent}%)`;
             } else if (e.data.type === 'done') {
-                // Render Canvas 2 (Overlay)
+                // Render Canvas 2 (Overlay Hijau + Merah)
                 const canvasOut = document.getElementById('canvasOutput');
                 const ctxOut = canvasOut.getContext('2d');
                 const finalImgData = ctxOut.createImageData(imgWidth, imgHeight);
@@ -330,7 +331,7 @@
                 maskImgData.data.set(e.data.maskPixels);
                 ctxMask.putImageData(maskImgData, 0, 0);
 
-                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur & Mask Biner berhasil terbentuk.";
+                document.getElementById('statusText').innerText = "Segmentasi Selesai! Kontur & Mask Biner berhasil terbentuk sempurna.";
                 finishProcessingState();
             }
         };
